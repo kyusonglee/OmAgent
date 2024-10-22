@@ -6,7 +6,7 @@ from pymilvus import CollectionSchema, DataType, FieldSchema
 from ..models.encoders.base import EncoderBase
 from ..utils.registry import registry
 from ..utils.error import VQLError
-from .milvus_handler import MilvusHandler
+from .vector_db.milvus_handler import MilvusHandler
 
 
 @registry.register_handler()

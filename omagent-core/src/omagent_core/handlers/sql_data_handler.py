@@ -1,51 +1,33 @@
-from typing import Any, Dict, List, Union
+# sql_data_handler.py
 
+from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy_utils import create_database, database_exists
 from sqlmodel import Session, SQLModel, create_engine, delete, select
-
-from .table import BaseTable
+from .handler_base import DataHandler
 from ..utils.error import VQLError
 from ..utils.logger import logging
 
 
-class SQLDataHandler(BaseModel):
-    """
-    数据库操作基础类
-    """
-
-    # 获取数据库相关环境变量
+class SQLDataHandler(DataHandler, BaseModel):
     db: str
     user: str
     passwd: str
     host: str = "localhost"
     port: str = 3306
-
     table: Any
-
     DELETED: int = 1
     NO_DELETED: int = 0
+    engine: Any = None
 
     class Config:
-        """Configuration for this pydantic object."""
-
         extra = "allow"
         arbitrary_types_allowed = True
 
-    def __init__(self, **data: Any) -> None:
-        """
-        从环境变量，初始化数据库，创建数据库，创建表。
-        """
+    def __init__(self, **data: Any):
         super().__init__(**data)
-
-        self.alchemy_uri = "mysql+pymysql://%s:%s@%s:%s/%s" % (
-            self.user,
-            self.passwd,
-            self.host,
-            self.port,
-            self.db,
-        )  # 数据库连接url
+        self.alchemy_uri = f"mysql+pymysql://{self.user}:{self.passwd}@{self.host}:{self.port}/{self.db}"
         self.engine = create_engine(
             self.alchemy_uri,
             pool_pre_ping=True,
@@ -56,14 +38,10 @@ class SQLDataHandler(BaseModel):
             echo=True,
             pool_use_lifo=True,
         )
-
         if not database_exists(self.engine.url):
-            # Create database is not exists
             create_database(self.engine.url)
         else:
-            # Connect the database if exists.
             self.engine.connect()
-
         SQLModel.metadata.create_all(bind=self.engine)
 
     def execute_sql(self, sql_query: str):
@@ -74,7 +52,7 @@ class SQLDataHandler(BaseModel):
                 matches.append(row._asdict())
         return matches
 
-    def simple_get(self, bot_id: str, number: int = None) -> List[BaseTable]:
+    def simple_get(self, bot_id: str, number: int = None) -> List[Any]:
         with Session(self.engine) as session:
             statement = (
                 select(self.table)
@@ -85,20 +63,9 @@ class SQLDataHandler(BaseModel):
             if number:
                 statement = statement.limit(number)
             query_results = session.exec(statement).all()
+        return query_results or []
 
-        if not query_results:
-            return []
-        return query_results
-
-    def simple_add(self, data: List[Union[BaseTable, Dict]]) -> List[str]:
-        """Add data to the table and return ids.
-
-        Args:
-            data (List[Union[BaseTable, Dict]]): A list of data you want to add to the table. Could be table objects or valid dicts.
-
-        Returns:
-            List[str]: The ids of the inserted rows.
-        """
+    def simple_add(self, data: List[Union[Any, Dict]]) -> List[str]:
         num = 0
         inserted = []
         with Session(self.engine) as session:
@@ -116,7 +83,7 @@ class SQLDataHandler(BaseModel):
     def simple_update(self, id: int, key: str, value: Any):
         with Session(self.engine) as session:
             statement = select(self.table).where(self.table.id == id)
-            query_result = session.exec(statement).one()
+            query_result = session.exec(statement).one_or_none()
             if not query_result:
                 raise VQLError(
                     500,
@@ -127,8 +94,7 @@ class SQLDataHandler(BaseModel):
                     500,
                     detail=f"Trying to update deleted data [{id}] in table [{self.table.__tablename__}]",
                 )
-
-            query_result.__setattr__(key, value)
+            setattr(query_result, key, value)
             session.add(query_result)
             session.commit()
             logging.debug(
@@ -136,7 +102,7 @@ class SQLDataHandler(BaseModel):
             )
 
     def simple_delete(self, id: int):
-        self.simple_update(id=id, key="deleted", value=1)
+        self.simple_update(id=id, key="deleted", value=self.DELETED)
         logging.debug(f"Id [{id}] is deleted in table [{self.table.__tablename__}]")
 
     def init_table(self):
@@ -145,3 +111,28 @@ class SQLDataHandler(BaseModel):
             session.commit()
             del_row_num = result.rowcount
         return del_row_num
+
+    def get_by_id(self, bot_id: str, id: int) -> Optional[Any]:
+        with Session(self.engine) as session:
+            statement = (
+                select(self.table)
+                .where(self.table.bot_id == bot_id)
+                .where(self.table.deleted == self.NO_DELETED)
+                .where(self.table.id == id)
+            )
+            query_res = session.exec(statement).one_or_none()
+        return query_res
+
+    def text_search(self, query: str, bot_id: str, limit: int) -> List[Any]:
+        with Session(self.engine) as session:
+            # Implement full-text search or simple LIKE query
+            # Assuming there is a 'content' field in the table to search
+            statement = (
+                select(self.table)
+                .where(self.table.bot_id == bot_id)
+                .where(self.table.deleted == self.NO_DELETED)
+                .where(self.table.content.ilike(f"%{query}%"))
+                .limit(limit)
+            )
+            query_results = session.exec(statement).all()
+        return query_results or []
