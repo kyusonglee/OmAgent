@@ -76,7 +76,7 @@ class SQLDataHandler(DataHandler, BaseModel):
                 num += 1
                 inserted.append(item)
             session.commit()
-            logging.debug(f"{num} data is added to table [{self.table.__tablename__}]")
+            print(f"{num} data is added to table [{self.table.__tablename__}]")
             ids = [item.id for item in inserted]
         return ids
 
@@ -97,13 +97,13 @@ class SQLDataHandler(DataHandler, BaseModel):
             setattr(query_result, key, value)
             session.add(query_result)
             session.commit()
-            logging.debug(
+            print(
                 f"Key [{key}] in id [{id}] is updated to [{value}] in table [{self.table.__tablename__}]"
             )
 
     def simple_delete(self, id: int):
         self.simple_update(id=id, key="deleted", value=self.DELETED)
-        logging.debug(f"Id [{id}] is deleted in table [{self.table.__tablename__}]")
+        print(f"Id [{id}] is deleted in table [{self.table.__tablename__}]")
 
     def init_table(self):
         with Session(self.engine) as session:

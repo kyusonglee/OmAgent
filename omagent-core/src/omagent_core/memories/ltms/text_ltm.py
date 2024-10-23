@@ -2,13 +2,13 @@
 
 from typing import Any, Dict, List, Optional, Union
 from pydantic import BaseModel
-from .text_ltm_base import TextLTMBase
-from .handler_base import DataHandler
-from .utils.error import VQLError
-from .utils.logger import logging
+from .base import LTMBase
+from ...handlers.handler_base import DataHandler
+from ...utils.error import VQLError
+from ...utils.logger import logging
 
 
-class TextLTM(TextLTMBase, BaseModel):
+class TextLTM(LTMBase, BaseModel):
     data_handler: Optional[DataHandler] = None
     table: Optional[Any] = None  # Should be a SQLModel subclass
     engine: Optional[Any] = None  # SQLAlchemy engine
