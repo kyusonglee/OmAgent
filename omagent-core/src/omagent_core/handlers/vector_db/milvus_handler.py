@@ -70,7 +70,8 @@ class MilvusHandler(VectorDBHandler, BaseModel):
             fields=fields,
             description=f"Collection for index {index_id}",
         )
-        self.make_collection(index_id, schema)
+        res = self.make_collection(index_id, schema)
+        print (res)
 
     def delete_index(self, index_id: str):
         self.drop_collection(index_id)
@@ -81,6 +82,7 @@ class MilvusHandler(VectorDBHandler, BaseModel):
                 collection_name=index_id,
                 data=vectors,
             )
+            print (res)
             return res["ids"]
         else:
             raise VQLError(500, detail=f"{index_id} collection does not exist")
@@ -126,11 +128,13 @@ class MilvusHandler(VectorDBHandler, BaseModel):
 
     def delete_vectors(self, index_id: str, ids: List[str]):
         if self.is_collection_in(index_id):
-            delete_expr = f"{self.primary_field} in [{', '.join(ids)}]"
-            self.milvus_client.delete(
+            delete_expr = f"{self.primary_field} in {ids}]"
+            print (delete_expr)
+            res = self.milvus_client.delete(
                 collection_name=index_id,
-                expr=delete_expr,
+                filter=delete_expr,
             )
+            print (res)
         else:
             raise VQLError(500, detail=f"{index_id} collection does not exist")
 
@@ -146,3 +150,18 @@ class MilvusHandler(VectorDBHandler, BaseModel):
 
     def drop_collection(self, collection_name):
         self.milvus_client.drop_collection(collection_name)
+
+    def get_vectors_by_id(self, collection_name, ids, output_fields=['pk', 'vector']):
+        return self.milvus_client.query(
+            collection_name=collection_name,
+            filter=f"pk in {ids}",
+            output_fields=output_fields
+        )
+    
+    def get_all_vectors(self, collection_name):
+        return self.milvus_client.query(
+            collection_name=collection_name,
+            filter="",  # Empty expression to match all records
+            limit=10,
+            output_fields=['pk', 'bot_id', 'content']  # Add any other fields you want to retrieve
+        )

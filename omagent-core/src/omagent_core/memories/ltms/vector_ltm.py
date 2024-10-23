@@ -9,15 +9,12 @@ from ...utils.error import VQLError
 from ...utils.logger import logging
 
 
-class VectorLTM(LTMBase, BaseModel):
-    encoders: Dict[str, EncoderBase] = {}
-    vector_db_handler: Optional[VectorDBHandler] = None
-    dim: Optional[int] = None
-    index_id: Optional[str] = None
-
-    class Config:
-        extra = "allow"
-        arbitrary_types_allowed = True
+class VectorLTM(LTMBase):
+    def __init__(self, index_id: str):
+        self.encoders: Dict[str, EncoderBase] = {}
+        self.vector_db_handler: Optional[VectorDBHandler] = None
+        self.dim: Optional[int] = None
+        self.index_id: str = index_id
 
     def handler_register(self, name: str, handler):
         setattr(self, name, handler)
@@ -29,10 +26,8 @@ class VectorLTM(LTMBase, BaseModel):
         if self.dim is None:
             self.dim = encoder.dim
         elif self.dim != encoder.dim:
-            raise VQLError(
-                500, detail="All encoders must have the same dimension"
-            )
-
+            raise VQLError(500, detail="All encoders must have the same dimension")
+ 
     def add(
         self,
         data: List[Dict[str, Any]],
@@ -65,8 +60,15 @@ class VectorLTM(LTMBase, BaseModel):
             {**item, "vector": vector} for vector, item in zip(vectors, data)
         ]
 
-        # Add vectors and metadata to the vector database
-        self.vector_db_handler.add_vectors(self.index_id, vector_records)
+        # Add vectors and metadata to the vector database        
+        print (self.index_id)
+        res = self.vector_db_handler.add_vectors(self.index_id, vector_records)
+        print ("Add Done")
+        return res
+        
+
+    def get_all_data(self, index_id):
+        return self.vector_db_handler.get_all_vectors(self.index_id)
 
     def match(
         self,
@@ -138,4 +140,6 @@ class VectorLTM(LTMBase, BaseModel):
                 'vector': {'type': 'vector', 'metric_type': 'L2', 'dim': self.dim},
                 # Include other fields as needed
             }
-        self.vector_db_handler.create_index(self.index_id, mapping)
+        print ("create_index",self.index_id,mapping)
+        res = self.vector_db_handler.create_index(self.index_id, mapping)
+        print (res)
