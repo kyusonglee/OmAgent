@@ -75,8 +75,8 @@ For more details, check out our paper **[OmAgent: A Multi-modal Agent Framework 
   bash standalone_embed.sh start
   ```
 
-## 🚀 Quick Start
-### General Task Processing
+## 🚀 Quick Start & Examples
+### General Processing
 1. **Worker Classes**
 There are several worker classes defined, each registered using a decorator `@registry.register_worker()`:
 
@@ -161,13 +161,15 @@ The while loop acts like a supervisor constantly checking on the workflow's prog
   ```
 
 ### Example Agents
+You can find the full list of examples in the [examples](./examples/) directory.
+
 #### Text based Agent
 - [Simple LLM chatbot](./examples/chat.py): A basic agent demonstrating how to build an agent with OmAgent. This agent has a straightforward flow with short-term memory and connects directly to ChatGPT.
 - [Document Analysis Agent](./examples/document_analysis.py): A more advanced agent utilizing an LLM, short-term and long-term memory, and custom tools for document analysis.
 
 #### Multi-modal Agent
 - [Style Bot](./examples/style_bot.py): Offers advice on fashion-related topics such as outfit ideas, accessory pairing, seasonal trends, color coordination, and wardrobe organization.
-- [Video Analysis](./examples/DnC.py): Efficiently stores and retrieves relevant video frames for specific queries, preserving detailed video content. [read EMNLP paper](https://arxiv.org/abs/2406.16620)
+- [Video Analysis](./examples/DnC.py): Efficiently stores and retrieves relevant video frames for specific queries, preserving detailed video content. ([read EMNLP paper](https://arxiv.org/abs/2406.16620))
 
 
 ### Video Understanding Task
@@ -241,6 +243,9 @@ The while loop acts like a supervisor constantly checking on the workflow's prog
     ```
 3. Start OmAgent by running ```python run.py```. Enter the path of the video you want to process, wait a moment, then enter your query, and OmAgent will answer based on the query.
 
+## API Documentation
+The API documentation is available [here](https://om-ai-lab.github.io/OmAgentDocs/).
+
 ## 🔗 Related works
 If you are intrigued by multimodal algorithms, large language models, and agent technologies, we invite you to delve deeper into our research endeavors:  
 🔆 [How to Evaluate the Generalization of Detection? A Benchmark for Comprehensive Open-Vocabulary Detection](https://arxiv.org/abs/2308.13177) (AAAI24)   
@@ -260,3 +265,7 @@ If you find our repository beneficial, please cite our paper:
   year={2024}
 }
 ```
+
+
+## Star History
+[![Star History Chart](https://api.star-history.com/svg?repos=om-ai-lab/OmAgent&type=Date)](https://star-history.com/#om-ai-lab/OmAgent&Date)
