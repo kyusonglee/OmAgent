@@ -43,11 +43,7 @@ Key features of OmAgent include:
 
 These features make OmAgent an accessible yet powerful framework for building sophisticated AI-driven systems that bridge LLMs, multimodal understanding, and tool-assisted workflows.
 
-<p align="center">
-  <img src="docs/images/OmAgent.png" width="700"/>
-</p>
 
-For more details, check out our paper **[OmAgent: A Multi-modal Agent Framework for Complex Video Understanding with Task Divide-and-Conquer](https://arxiv.org/abs/2406.16620)**
 
 ## 🛠️ How To Install
 - python >= 3.10
@@ -191,7 +187,8 @@ You can find the full list of examples in the [examples](./examples/) directory.
 
 #### Multi-modal Agent
 - [Style Bot](./examples/style_bot.py): Offers advice on fashion-related topics such as outfit ideas, accessory pairing, seasonal trends, color coordination, and wardrobe organization.
-- [Video Analysis](./examples/DnC.py): Efficiently stores and retrieves relevant video frames for specific queries, preserving detailed video content. ([read EMNLP paper](https://arxiv.org/abs/2406.16620))
+- [Video Analysis](./examples/DnC.py): Efficiently stores and retrieves relevant video frames for specific queries, preserving detailed video content. For more details, check out our paper **[OmAgent: A Multi-modal Agent Framework for Complex Video Understanding with Task Divide-and-Conquer](https://arxiv.org/abs/2406.16620)**
+
 
 
 ## API Documentation
