@@ -40,6 +40,15 @@ class DefaultClient:
         self._config_path = config_path
         self._workers = workers
         self._input_prompt = input_prompt
+        self._task_handler_interactor = None
+
+    def start_interactor_with_input(self, workflow_input: dict):
+        if self._task_handler_interactor is None:
+            worker_config = build_from_file(self._config_path)
+            print("worker_config:",worker_config)
+            self._task_handler_interactor = TaskHandler(worker_config=worker_config, workers=self._workers)
+            self._task_handler_interactor.start_processes()
+        workflow_instance_id = self._interactor.start_workflow_with_input(workflow_input=workflow_input)
 
     def start_interactor(self):
         absolute_path = Path(self._config_path).resolve()
