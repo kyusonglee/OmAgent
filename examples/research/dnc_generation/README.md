@@ -1,6 +1,6 @@
 # Control Large Language Models via Divide and Conquer
 ## Introduction
-This project implements the Divide-and-Conquer (DnC) text generation method described in the paper ("Control Large Language Models via Divide and Conquer")[https://arxiv.org/abs/2410.04628] by Li, Bingxuan, et al., in the OmAgent framework. 
+This project implements the Divide-and-Conquer (DnC) text generation method described in the paper ["Control Large Language Models via Divide and Conquer"](https://arxiv.org/abs/2410.04628) by Li, Bingxuan, et al., in the OmAgent framework. 
 
 ## Overview
 The DnCGeneration worker iteratively generates text that satisfies specified constraints (keywords). If any constraints are not met in the initial generation, the process continues by focusing on the unmet constraints and merging the results until all constraints are satisfied or the maximum iterations (k) are reached. 
