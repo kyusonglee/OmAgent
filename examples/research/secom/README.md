@@ -36,33 +36,6 @@ Conversation: "What’s your favorite movie? I love Star Wars. How about dinner 
 
 ---
 
-## **Implementation Details**
-The SeCom implementation comprises the following workers:
-
-### **1. InputInterface**
-- Handles user input and stores conversation history.
-- Provides the input data for segmentation and retrieval tasks.
-
-### **2. SeCom**
-- Constructs the memory bank at the **segment level** by dividing long conversations into topically coherent units.
-- Applies **compression-based denoising** using models like LLMLingua-2 to improve retrieval performance.
-
-### **3. SimpleQA**
-- Integrates the segmented memory to generate accurate and context-aware responses.
-
-### **4. Workflow**
-- Orchestrates tasks using the `DoWhileTask` to ensure iterative improvements and updates until a termination condition is met.
-
----
-
-## **Development and Customization**
-You can modify the segmentation model, denoising technique, or retrieval logic to fit your needs. Key files include:
-- **`input_interface.py`**: Input handling and storage.
-- **`secom.py`**: Core segmentation and compression-based memory construction.
-- **`run_cli.py`**: Workflow execution script.
-
----
-
 ## **Citing This Work**
 If you use this implementation in your research, please cite the original paper:
 ```bibtex
@@ -74,21 +47,3 @@ If you use this implementation in your research, please cite the original paper:
 }
 ```
 
----
-
-## **Contributors**
-- Zhuoshi Pan, Qianhui Wu, Huiqiang Jiang, and others.
-
----
-
-## **License**
-This project is licensed under the MIT License. See the LICENSE file for more details.
-
----
-
-## **Acknowledgments**
-This work builds on ideas from retrieval-augmented generation, conversational segmentation, and compression techniques. The LOCOMO and Long-MT-Bench+ datasets were used for benchmarking.
-
---- 
-
-This README provides an easy-to-understand structure for users to run, understand, and modify the implementation.
