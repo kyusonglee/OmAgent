@@ -80,13 +80,13 @@ class SwitchTask(Task):
         for task in self.next_tasks:
             task.execute()
         return None
-    """
+    
     def __rshift__(self, other):
         self.next_tasks.append(other)
         if isinstance(other, Task):
             setattr(other, '_parent_task', self)
         return other
-    """
+    
 
 class DoWhileTask(Task):
     def __init__(self, name, tasks: List[Task], termination_condition: str):

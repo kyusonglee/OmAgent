@@ -25,7 +25,6 @@ import os
 
 CURRENT_PATH = Path(__file__).parents[0]
 
-os.environ["MODE"] = "lite"
 
 @registry.register_worker()
 class InputInterface(BaseWorker):
