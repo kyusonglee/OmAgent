@@ -1,0 +1,6 @@
+name: Qwen2_VL
+model_name: ${env| model_id, Qwen/Qwen2-VL-2B-Instruct}
+max_tokens: 128
+temperature: 0.1
+use_default_sys_prompt: false
+device: ${env| device, cpu} 

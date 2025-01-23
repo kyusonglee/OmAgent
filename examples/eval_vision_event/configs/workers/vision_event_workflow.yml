@@ -1,0 +1,4 @@
+- name: InitialEventDetector
+  llm: ${sub| qwen2_vl}
+- name: DetailedEventAnalyzer
+  llm: ${sub| qwen2_vl} 

@@ -1,0 +1,36 @@
+{
+    "name": "vision_event",
+    "tasks": [
+        {
+            "name": "InitialEventDetector",
+            "taskReferenceName": "initial_detector",
+            "inputParameters": {
+                "image_path": "${workflow.input.image_path}",
+                "event_prompt": "${workflow.input.event_prompt}"
+            },
+            "type": "SIMPLE",
+            "taskDefinition": {}
+        },
+        {
+            "name": "DetailedEventAnalyzer",
+            "taskReferenceName": "detailed_analyzer",
+            "inputParameters": {
+                "image_path": "${workflow.input.image_path}",
+                "event_prompt": "${workflow.input.event_prompt}",
+                "initial_result": "${initial_detector.output.result}",
+                "confidence": "${initial_detector.output.confidence}"
+            },
+            "type": "SIMPLE",
+            "taskDefinition": {}
+        }
+    ],
+    "inputParameters": [],
+    "outputParameters": {},
+    "failureWorkflow": "",
+    "schemaVersion": 2,
+    "workflowStatusListenerEnabled": false,
+    "ownerEmail": "default@omagent.ai",
+    "timeoutSeconds": 60,
+    "variables": {},
+    "inputTemplate": {}
+}

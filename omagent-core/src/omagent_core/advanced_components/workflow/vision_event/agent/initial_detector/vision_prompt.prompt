@@ -1,0 +1,7 @@
+Analyze this image and determine if the following event is present: {{event_prompt}}
+
+If you're very confident (>90%) that the event is NOT present, respond with 'CLEARLY_FALSE'.
+If you're very confident (>90%) that the event IS present, respond with 'CLEARLY_TRUE'.
+If you're unsure or need closer inspection, respond with 'NEEDS_ANALYSIS'.
+
+Explain your reasoning briefly. 

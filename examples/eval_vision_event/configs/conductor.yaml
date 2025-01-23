@@ -1,0 +1,2 @@
+conductor:
+  workflow_def_refresh_interval: 10 
