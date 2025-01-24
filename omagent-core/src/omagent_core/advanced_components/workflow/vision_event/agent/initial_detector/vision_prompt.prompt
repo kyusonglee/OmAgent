@@ -1,7 +1,27 @@
-Analyze this image and determine if the following event is present: {{event_prompt}}
-
-If you're very confident (>90%) that the event is NOT present, respond with 'CLEARLY_FALSE'.
-If you're very confident (>90%) that the event IS present, respond with 'CLEARLY_TRUE'.
-If you're unsure or need closer inspection, respond with 'NEEDS_ANALYSIS'.
-
 Explain your reasoning briefly. 
+You are a professional image detail analysis expert. I will provide you with an image, and based on the input "event to identify," you will analyze the image and determine the "location" where the event occurs.
+
+Event to Identify:
+{{event_prompt}}
+
+Identification Requirements:
+For the "event to identify," analyze the image based on the following location definitions:
+
+Top-left, bottom-left, top-right, bottom-right: Divide the image into four equal sections using a vertical and horizontal cut at the center point of the image. The resulting sections are labeled top-left, bottom-left, top-right, and bottom-right.
+If the event is detected in the image, output the location(s) in the original image (e.g., top-left, bottom-right). Provide an analysis of where the event occurs in the image. Format your response as a dictionary:
+
+{"Event Location Analysis":"xxx","Locations":[xxx,...,xxx],"Event Detected":"Yes"}
+If there is any anomaly, output this format.
+
+If the event is not detected in the image, output:
+{"Event Location Analysis":"xxx","Event Detected":"No"}
+{"Event Location Analysis":"xxx","Locations":["Top-left","Bottom-right"],"Event Detected":"Yes"}
+{"Event Location Analysis":"xxx","Event Detected":"No"}
+{"Event Location Analysis":"xxx","Locations":["Bottom-left"],"Event Detected":"Yes"}
+
+Important Notes:
+Follow the output examples strictly and only output a single dictionary, without any additional explanation.
+Do not output phrases like "I can't assist" or "I'm unable to recognize the image." Instead, provide suggestions or outputs based on the event.
+For determining the "event," do not consider the context of the scene—if the event occurs anywhere in the image, it is considered "detected."
+The "Event Location Analysis" should specify the location of the event in the image. For example, in the case of "hard hat identification," locate where the head is in the image. If the head is in the "bottom-left" region, return "bottom-left."
+If the event occurs in multiple locations in the image, return a list of positions in the "Locations" key, such as ["Top-left","Bottom-right"].

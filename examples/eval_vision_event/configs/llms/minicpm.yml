@@ -1,0 +1,6 @@
+name: MiniCPM
+model_name: ${env| model_id, openbmb/MiniCPM-o-2_6}
+max_tokens: 128
+temperature: 0.1
+use_default_sys_prompt: false
+device: ${env| device, cpu} 

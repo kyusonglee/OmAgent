@@ -22,8 +22,8 @@ def parse_args():
                         help='OpenAI API endpoint')
     parser.add_argument('--api_key', type=str, default=None,
                         help='OpenAI API key')
-    parser.add_argument('--model_id', type=str, default="Qwen/Qwen2-VL-2B-Instruct",
-                        help='Model ID to use (default: Qwen2-VL)')
+    parser.add_argument('--model_id', type=str, default="openbmb/MiniCPM-o-2_6",
+                        help='Model ID to use (default: MiniCPM)')
     parser.add_argument('--images_dir', type=str, required=True,
                         help='Directory containing images to analyze')
     parser.add_argument('--event_prompt', type=str, required=True,

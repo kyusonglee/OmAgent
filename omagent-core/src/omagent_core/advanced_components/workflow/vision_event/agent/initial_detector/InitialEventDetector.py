@@ -2,7 +2,7 @@ from pathlib import Path
 from omagent_core.engine.worker.base import BaseWorker
 from omagent_core.models.llms.base import BaseLLMBackend
 from omagent_core.utils.registry import registry
-from omagent_core.models.llms.qwen2_vl import Qwen2_VL
+from omagent_core.models.llms.base import BaseLLM
 from omagent_core.models.llms.prompt.prompt import PromptTemplate
 from pydantic import Field
 from typing import List
@@ -18,7 +18,7 @@ class InitialEventDetector(BaseWorker, BaseLLMBackend):
     This detector performs the first-pass analysis of the image using Qwen2-VL
     to determine if the specified event is present.
     """
-    llm: Qwen2_VL
+    llm: BaseLLM
     prompts: List[PromptTemplate] = Field(
         default=[
             PromptTemplate.from_file(

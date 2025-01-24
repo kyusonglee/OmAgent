@@ -34,7 +34,7 @@ class VisionEventWorkflow(ConductorWorkflow):
                 'event_prompt': self.event_prompt
             }
         )
-        
+        """
         self.detailed_analyzer_task = simple_task(
             task_def_name="DetailedEventAnalyzer",  
             task_reference_name='detailed_analyzer',
@@ -45,10 +45,12 @@ class VisionEventWorkflow(ConductorWorkflow):
                 'confidence': self.initial_detector_task.output('confidence')
             }
         )
+        """
 
     def _configure_workflow(self):
         """Configure workflow execution flow and output."""
-        self >> self.initial_detector_task >> self.detailed_analyzer_task
-        self.detection_result = self.detailed_analyzer_task.output('final_result')
-        self.confidence_score = self.detailed_analyzer_task.output('confidence')
-        self.analysis_details = self.detailed_analyzer_task.output('analysis_details') 
+        self >> self.initial_detector_task # >> self.detailed_analyzer_task
+
+        #self.detection_result = self.detailed_analyzer_task.output('final_result')
+        #self.confidence_score = self.detailed_analyzer_task.output('confidence')
+        #self.analysis_details = self.detailed_analyzer_task.output('analysis_details') 

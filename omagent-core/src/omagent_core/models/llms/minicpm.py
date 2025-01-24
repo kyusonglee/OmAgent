@@ -7,15 +7,14 @@ from .schemas import Content, Message
 from ...utils.registry import registry
 from .base import BaseLLM
 import torch
-import sysconfig
-from qwen_vl_utils import process_vision_info
+
 
 @registry.register_llm()
 class MiniCPM(BaseLLM):
     model_name: str = Field(default=os.getenv("MODEL_NAME", "openbmb/MiniCPM-o-2_6"), description="The Hugging Face model name")
     max_tokens: int = Field(default=128, description="The maximum number of tokens for the model")
     temperature: float = Field(default=0.1, description="The sampling temperature for generation")
-    device: str = Field(default="cuda" if torch.cuda.is_available() else "cpu", description="The device to run the model on")
+    device: str = Field(default="cpu", description="The device to run the model on")
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
@@ -24,7 +23,7 @@ class MiniCPM(BaseLLM):
         self.model = AutoModel.from_pretrained(
             self.model_name,
             trust_remote_code=True,
-            attn_implementation='sdpa',
+            attn_implementation='eager',
             torch_dtype=torch.bfloat16
         ).eval().to(self.device)
 
@@ -53,7 +52,7 @@ class MiniCPM(BaseLLM):
                     if isinstance(image_data, bytes):
                         image = Image.open(io.BytesIO(image_data)).convert('RGB')
                     else:
-                        image = image_data
+                        image = Image.open(image_data).convert('RGB')
                     content_list.append(image)
                 elif content.get("type") == "text":
                     content_list.append(content.get("data", ""))
