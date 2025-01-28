@@ -30,9 +30,14 @@ class Qwen2_VL(BaseLLM):
 
     def __init__(self, **data: Any) -> None:
         super().__init__(**data)
-        from transformers import AutoTokenizer, AutoProcessor, Qwen2VLForConditionalGeneration
-        self.processor = AutoProcessor.from_pretrained(self.model_name,min_pixels=256 * 28 * 28, max_pixels=512 * 28 * 28)
-        self.model = Qwen2VLForConditionalGeneration.from_pretrained(self.model_name, torch_dtype="auto", device_map="auto").to(self.device)
+        #from transformers import AutoTokenizer, AutoProcessor, Qwen2VLForConditionalGeneration
+        from transformers import Qwen2_5_VLForConditionalGeneration, AutoTokenizer, AutoProcessor, Qwen2VLForConditionalGeneration
+
+        self.processor = AutoProcessor.from_pretrained(self.model_name,min_pixels=256 * 28 * 28, max_pixels=1280 * 28 * 28)
+        if "2.5" in self.model_name:
+            self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(self.model_name, torch_dtype="auto", device_map="auto")
+        else:
+            self.model = Qwen2VLForConditionalGeneration.from_pretrained(self.model_name, torch_dtype="auto", device_map="auto")
         
 
     def _call(self, records: List[Message], **kwargs) -> Dict:

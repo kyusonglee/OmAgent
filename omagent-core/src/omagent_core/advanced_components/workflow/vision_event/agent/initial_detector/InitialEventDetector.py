@@ -50,28 +50,45 @@ class InitialEventDetector(BaseWorker, BaseLLMBackend):
 
         # Prepare messages for Qwen2-VL
         messages = [
+    {
+        "role": "user",
+        "content": [
+            {"type": "image", "data": image_path},
             {
-                "role": "user",
-                "content": [
-                    {"type": "image", "data": image_path},
-                    {"type": "text", "data": f"""Analyze this image and determine if the following event is present: {event_prompt}
-                    If you're very confident (>90%) that the event is NOT present, respond with 'CLEARLY_FALSE'.
-                    If you're very confident (>90%) that the event IS present, respond with 'CLEARLY_TRUE'.
-                    If you're unsure or need closer inspection, respond with 'NEEDS_ANALYSIS'.
-                    Explain your reasoning briefly."""}
-                ]
+                "type": "text",
+                "data": (
+                    "Explain your reasoning briefly.\n"
+                    "You are a professional image detail analysis expert. I will provide you with an image, and based on the input 'event to identify,' you will analyze the image and determine the 'location' where the event occurs.\n\n"
+                    "Event to Identify:\n"
+                    f"{event_prompt}\n\n"
+                    "Identification Requirements:\n"
+                    "For the 'event to identify,' analyze the image based on the following location definitions:\n\n"
+                    "Top-left, bottom-left, top-right, bottom-right: Divide the image into four equal sections using a vertical and horizontal cut at the center point of the image. "
+                    "The resulting sections are labeled top-left, bottom-left, top-right, and bottom-right.\n"
+                    "If the event is detected in the image, output the location(s) in the original image (e.g., top-left, bottom-right). Provide an analysis of where the event occurs in the image. "
+                    "Format your response as a dictionary:\n\n"
+                    '{"Event Location Analysis":"xxx","Locations":[xxx,...,xxx],"Event Detected":"Yes"}\n'
+                    "If there is any anomaly, output this format.\n\n"
+                    "If the event is not detected in the image, output:\n"
+                    '{"Event Location Analysis":"xxx","Event Detected":"No"}\n\n'
+                    "Examples:\n"
+                    '{"Event Location Analysis":"xxx","Locations":["Top-left","Bottom-right"],"Event Detected":"Yes"}\n'
+                    '{"Event Location Analysis":"xxx","Event Detected":"No"}\n'
+                    '{"Event Location Analysis":"xxx","Locations":["Bottom-left"],"Event Detected":"Yes"}\n\n'
+                    "Important Notes:\n"
+                    "1. Follow the output examples strictly and only output a single dictionary, without any additional explanation.\n"
+                    "2. Do not output phrases like 'I can’t assist' or 'I’m unable to recognize the image.' Instead, provide suggestions or outputs based on the event.\n"
+                    "3. For determining the 'event,' do not consider the context of the scene—if the event occurs anywhere in the image, it is considered 'detected.'\n"
+                    "4. The 'Event Location Analysis' should specify the location of the event in the image. For example, in the case of 'hard hat identification,' locate where the head is in the image. "
+                    "If the head is in the 'bottom-left' region, return 'bottom-left.'\n"
+                    "5. If the event occurs in multiple locations in the image, return a list of positions in the 'Locations' key, such as ['Top-left','Bottom-right']."
+                )
             }
         ]
+    }
+]
 
         # Get model response
-        print ("messages:", messages)
         response = self.llm._call({"messages": messages})
         result = response["responses"][0]
-        print (result)
-        # Process response
-        if "CLEARLY_FALSE" in result:
-            return {'result': False, 'confidence': 0.95, 'requires_detailed': False}
-        elif "CLEARLY_TRUE" in result:
-            return {'result': True, 'confidence': 0.95, 'requires_detailed': False}
-        else:
-            return {'result': None, 'confidence': 0.5, 'requires_detailed': True} 
+        return result

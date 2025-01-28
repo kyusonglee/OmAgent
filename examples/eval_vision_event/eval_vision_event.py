@@ -93,12 +93,11 @@ def main():
     
     # Collect results
     for r, w in zip(res, workflow_input_list):
+        #print (w,r)
         output_json.append({
             "image_path": w['image_path'],
             "event_prompt": w['event_prompt'],
-            "detection_result": r['detection_result'],
-            "confidence_score": r['confidence_score'],
-            "analysis_details": r['analysis_details']
+            "detection_result": r,
         })
         
     # Prepare final output
@@ -114,7 +113,12 @@ def main():
         os.makedirs(args.output_path)
 
     # Save results to output file
-    output_filename = f'vision_event_detection_{args.model_id.replace("/", "_")}.json'
+    if "positive" in args.images_dir:
+        sent = "positive"
+    else:
+        sent = "negative"
+
+    output_filename = f'{sent}_{args.model_id.replace("/", "_")}.json'
     output_path = os.path.join(args.output_path, output_filename)
     
     with open(output_path, 'w') as f:
