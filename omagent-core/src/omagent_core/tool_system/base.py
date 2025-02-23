@@ -83,6 +83,7 @@ class ArgSchema(BaseModel):
             "int": "integer",
             "float": "number",
             "bool": "boolean",
+            "dict": "dict",
         }
         for name, value in args.items():
             if name not in self.model_dump():
@@ -142,6 +143,8 @@ class ArgSchema(BaseModel):
                                 name, type(value), value
                             )
                         )
+            elif self.model_dump()[name]["type"] == "dict":
+                new_args[name] = value
             else:
                 raise ValueError(
                     "Parameter {} type expect one of string, integer, number and boolean, but got a {} {}".format(

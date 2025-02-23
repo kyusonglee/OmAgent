@@ -6,6 +6,7 @@ import uuid
 import logging
 from omagent_core.engine.http.models import *
 import json
+import traceback
 
 
 class LocalWorkflowExecutor:
@@ -43,7 +44,12 @@ class LocalWorkflowExecutor:
         for i, task_def in enumerate(workflow_def.tasks):
             if i == 0:
                 task_def.input_parameters = start_request.input
-            output = self.execute_task(task_def.to_dict(), workers)
+            print ("RUNNING TASK:", task_def.to_dict()["name"], self.evaluate_input_parameters(task_def.to_dict()))
+            try:
+                output = self.execute_task(task_def.to_dict(), workers)
+            except Exception as e:
+                logging.error(f"Error executing task {task_def.to_dict()['name']}: {str(e)}")
+                return {"error": str(e),"class":task_def.to_dict()['name'], "traceback": traceback.format_exc(), "input": self.evaluate_input_parameters(task_def.to_dict())}
         return output
 
         #return workflow_id
@@ -236,6 +242,9 @@ class WorkflowExecutor:
         except Exception as e:
             self.status.status = "FAILED"
             self.status.error = str(e)
+            error_details = traceback.format_exc()
+            logging.error(f"Traceback: {error_details}")
+            return (f"Traceback: {error_details}")
 
 
     def get_workflow(self, workflow_id: str, include_tasks: bool = None) -> Workflow:        

@@ -30,8 +30,10 @@ class ConductorWorkflow:
 
     def __init__(self, name: str, version: int = None, description: str = None, lite_version: bool = False) -> Self:
         if lite_version or os.getenv("OMAGENT_MODE") == "lite":
+            print ("lite mode")
             self._executor = LiteWorkflowExecutor()
         else:
+            print ("pro mode")
             self._executor = WorkflowExecutor()
         self.name = name
         self.version = version
@@ -347,9 +349,7 @@ class ConductorWorkflow:
     def __get_workflow_task_list(self) -> List[WorkflowTask]:
         workflow_task_list = []
         for task in self._tasks:
-            print (type(task))
             converted_task = task.to_workflow_task()
-            print (converted_task)
             if isinstance(converted_task, list):
                 for subtask in converted_task:
                     workflow_task_list.append(subtask)

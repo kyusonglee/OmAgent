@@ -60,7 +60,7 @@ class DefaultClient:
     def start_interactor(self):
         import threading
         from time import sleep
-
+        print ("start_interactor")
         workflow_instance_id = "temp"
         try:
             absolute_path = Path(self._config_path).resolve()
