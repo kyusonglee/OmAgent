@@ -258,16 +258,24 @@ Tools:
 ```python
 result = tool_manager.execute("GeneralOD", {"image": image, "labels": "{target_labels separated by comma}", "threshold": 0.5, "nms_threshold": 0.5}) # image can be image url, pill image, image base64, etc.
 ```
+an example result:
+{"objects": [{'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.958407998085022, 'label': 'dog'}, {'xmin': 928.0, 'ymin': 522.0, 'xmax': 1493.0, 'ymax': 1079.0, 'conf': 0.8276795148849487, 'label': 'person'}, {'xmin': 1108.0, 'ymin': 700.0, 'xmax': 1255.0, 'ymax': 888.0, 'conf': 0.1099763959646225, 'label': 'dog'}, {'xmin': 1180.0, 'ymin': 750.0, 'xmax': 1215.0, 'ymax': 795.0, 'conf': 0.10541261732578278, 'label': 'dog'}, {'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.10040629655122757, 'label': 'person'}]}
 
 - DetectAll: Detect all objects in the image.
 ```python
 result = tool_manager.execute("DetectAll", {"image": image}) # image can be image url, pill image, image base64, etc.
 ```
+an example result:
+{"objects": [{'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.958407998085022, 'label': 'dog'}, {'xmin': 928.0, 'ymin': 522.0, 'xmax': 1493.0, 'ymax': 1079.0, 'conf': 0.8276795148849487, 'label': 'person'}, {'xmin': 1108.0, 'ymin': 700.0, 'xmax': 1255.0, 'ymax': 888.0, 'conf': 0.1099763959646225, 'label': 'dog'}, {'xmin': 1180.0, 'ymin': 750.0, 'xmax': 1215.0, 'ymax': 795.0, 'conf': 0.10541261732578278, 'label': 'dog'}, {'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.10040629655122757, 'label': 'person'}]}
 
 - SuperResolution: Enhance the image.
 ```python
 result = tool_manager.execute("SuperResolution", {"image": image}) # image can be image url, pill image, image base64, etc.
 ```
+An example result:
+{"upscaled_image": upscaled_image} #upscaled_image is PIL image
+
+all image for tools, it will be the best if image type is url. if local file path, then convert to base64 and use in tools.
 
 - Search: Search the internet for information.
 ```python
@@ -289,6 +297,55 @@ class {worker_name}(BaseWorker):
 ```
 if you need to use other tools, you can use llm with prompt engineering using above SimpleVQA example.
 
+
+An example of decisionCases for SWITCH:
+ {
+                    "name": "switch_task",
+                    "taskReferenceName": "switch_task",
+                    "inputParameters": {
+                        "switchCaseValue": "${task_conqueror.output.switch_case_value}"
+                    },
+                    "type": "SWITCH",
+                    "decisionCases": {
+                        "complex": [
+                            {
+                                "name": "TaskDivider",
+                                "taskReferenceName": "task_divider",
+                                "inputParameters": {},
+                                "type": "SIMPLE",
+
+                            }
+                        ],
+                        "failed": [
+                            {
+                                "name": "TaskRescue",
+                                "taskReferenceName": "task_rescue",
+                                "inputParameters": {},
+                                "type": "SIMPLE"
+                            }
+                        ]
+                    },
+                    "defaultCase": [],
+                    "evaluatorType": "value-param",
+                    "expression": "switchCaseValue"
+                },
+
+,which means task_conqueror's return should include {"switch_case_value": "complex"} or {"switch_case_value": "failed"}
+inputParameters of SWITCH should be like below:
+            "inputParameters": {
+                "switchCaseValue": "${previous_worker_reference_name.output.switch_case_value}"
+            },
+
+
+if an value of inputParameters is "${object_detection.output.mouse_detected}", it means the value of switchCaseValue is the value of mouse_detected in the output of object_detection.
+
+"inputParameters": {
+                "switchCaseValue": "${object_detection.output.mouse_detected}"
+            },
+            "type": "SWITCH",
+
+in object_detection worker, the function of _run return should be like below:
+return {"mouse_detected": ...}
 
 Previous codes (Please use the previous codes to implement the worker like how to set and use stm and input and output. If there is no previous codes, please implement the worker from scratch.. ):
 {{previous_codes}}

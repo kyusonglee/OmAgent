@@ -93,7 +93,9 @@ class ArgSchema(BaseModel):
                     )
                 )
                 continue
-            if name_mapping[type(value).__name__] == self.model_dump()[name]["type"]:
+            if self.model_dump()[name]["type"] == "any":
+                new_args[name] = value
+            elif name_mapping[type(value).__name__] == self.model_dump()[name]["type"]:
                 if (
                     self.model_dump()[name]["enum"]
                     and value not in self.model_dump()[name]["enum"]

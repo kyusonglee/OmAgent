@@ -1,0 +1,129 @@
+{
+    "name": "MouseDetectionWorkflow",
+    "tasks": [
+        {
+            "name": "ImageInputHandler",
+            "taskReferenceName": "input_task",
+            "inputParameters": {
+                "image_path": "${workflow.input.image_path}"
+            },
+            "type": "SIMPLE",
+            "taskDefinition": {}
+        },
+        {
+            "name": "ObjectDetector",
+            "taskReferenceName": "primary_detection",
+            "inputParameters": {},
+            "type": "SIMPLE",
+            "taskDefinition": {}
+        },
+        {
+            "name": "ZoomEnhance",
+            "taskReferenceName": "zoom_enhance",
+            "inputParameters": {},
+            "type": "SIMPLE",
+            "taskDefinition": {}
+        },
+        {
+            "name": "SecondaryDetector",
+            "taskReferenceName": "secondary_detection",
+            "inputParameters": {},
+            "type": "SIMPLE",
+            "taskDefinition": {}
+        },
+        {
+            "name": "ActionRecognizer",
+            "taskReferenceName": "action_recognition",
+            "inputParameters": {},
+            "type": "SIMPLE",
+            "taskDefinition": {}
+        },
+        {
+            "name": "NLPActionInterpreter",
+            "taskReferenceName": "nlp_interpreter",
+            "inputParameters": {},
+            "type": "SIMPLE",
+            "taskDefinition": {}
+        },
+        {
+            "name": "DetectionConfirmation",
+            "taskReferenceName": "detection_confirmation",
+            "inputParameters": {
+                "switchCaseValue": "${secondary_detection.output.mouse_detected}"
+            },
+            "type": "SWITCH",
+            "decisionCases": {
+                "true": [
+                    {
+                        "name": "ActionRecognizer",
+                        "taskReferenceName": "action_recognition",
+                        "inputParameters": {},
+                        "type": "SIMPLE"
+                    },
+                    {
+                        "name": "NLPActionInterpreter",
+                        "taskReferenceName": "nlp_interpreter",
+                        "inputParameters": {},
+                        "type": "SIMPLE"
+                    }
+                ],
+                "false": [
+                    {
+                        "name": "ZoomEnhance",
+                        "taskReferenceName": "zoom_enhance",
+                        "inputParameters": {},
+                        "type": "SIMPLE"
+                    },
+                    {
+                        "name": "SecondaryDetector",
+                        "taskReferenceName": "secondary_detection",
+                        "inputParameters": {},
+                        "type": "SIMPLE"
+                    }
+                ]
+            },
+            "defaultCase": [],
+            "evaluatorType": "value-param",
+            "expression": "switchCaseValue"
+        }
+    ],
+    "inputParameters": [],
+    "outputParameters": {},
+    "failureWorkflow": "",
+    "schemaVersion": 2,
+    "workflowStatusListenerEnabled": false,
+    "ownerEmail": "default@omagent.ai",
+    "timeoutSeconds": 60,
+    "variables": {},
+    "description": [
+        {
+            "Worker_Name": "ImageInputHandler",
+            "Role": "Handles the input image path."
+        },
+        {
+            "Worker_Name": "ObjectDetector",
+            "Role": "Primary detection for objects, especially mouse."
+        },
+        {
+            "Worker_Name": "ZoomEnhance",
+            "Role": "Enhance and zoom areas likely containing a mouse."
+        },
+        {
+            "Worker_Name": "SecondaryDetector",
+            "Role": "Confirm detection using another method."
+        },
+        {
+            "Worker_Name": "ActionRecognizer",
+            "Role": "Recognizes actions of the detected mouse."
+        },
+        {
+            "Worker_Name": "NLPActionInterpreter",
+            "Role": "Interprets the recognized actions into human-readable format."
+        },
+        {
+            "Worker_Name": "DetectionConfirmation",
+            "Role": "Confirms detection presence and determines further action."
+        }
+    ],
+    "inputTemplate": {}
+}

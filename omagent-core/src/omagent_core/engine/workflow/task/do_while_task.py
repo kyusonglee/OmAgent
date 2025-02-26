@@ -1,11 +1,12 @@
 from copy import deepcopy
 from typing import Any, Dict, List
-
+import os
 from omagent_core.engine.http.models.workflow_task import WorkflowTask
 from omagent_core.engine.workflow.task.task import (
     TaskInterface, get_task_interface_list_as_workflow_task_list)
 from omagent_core.engine.workflow.task.task_type import TaskType
 from typing_extensions import Self
+from omagent_core.engine.workflow.task.simple_task import simple_task
 
 
 def get_for_loop_condition(task_ref_name: str, iterations: int) -> str:
@@ -18,6 +19,12 @@ def get_dnc_loop_condition(task_ref_name: str) -> str:
         f" if ( $.{task_ref_name}['exit_flag'] == true) {{ false; }} else {{ true; }}"
     )
 
+def get_task_interface_list_as_workflow_task_list_for_lite(*tasks: Self) -> List[WorkflowTask]:
+    converted_tasks = []
+    for task in tasks:        
+        #converted_tasks.append(simple_task(task_def_name=task.name, task_reference_name=task.task_reference_name, inputs=task.input_parameters))
+        converted_tasks.append(task)
+    return converted_tasks
 
 class DoWhileTask(TaskInterface):
     # termination_condition is a Javascript expression that evaluates to True or False
@@ -38,9 +45,14 @@ class DoWhileTask(TaskInterface):
     def to_workflow_task(self) -> WorkflowTask:
         workflow = super().to_workflow_task()
         workflow.loop_condition = self._loop_condition
-        workflow.loop_over = get_task_interface_list_as_workflow_task_list(
-            *self._loop_over,
-        )
+        if os.getenv("OMAGENT_MODE") == "lite":
+            workflow.loop_over = get_task_interface_list_as_workflow_task_list_for_lite(
+                *self._loop_over,
+            )
+        else:
+            workflow.loop_over = get_task_interface_list_as_workflow_task_list(
+                *self._loop_over,
+            )
         return workflow
 
 

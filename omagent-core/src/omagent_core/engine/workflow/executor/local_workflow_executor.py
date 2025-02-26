@@ -7,7 +7,7 @@ import logging
 from omagent_core.engine.http.models import *
 import json
 import traceback
-
+import re
 
 class LocalWorkflowExecutor:
     def __init__(self):
@@ -15,7 +15,10 @@ class LocalWorkflowExecutor:
         self.workers = {}
         self.task_outputs = {}
         self.workflow_variables = {}
-        
+    
+    def camel_to_snake(self,s):
+        return re.sub(r'([A-Z])', r'_\1', s).lower()
+
     def evaluate_input_parameters(self, task: Dict) -> Dict:
         processed_inputs = {}
         input_params = task.get('inputParameters') or task.get('input_parameters', {})
@@ -24,7 +27,6 @@ class LocalWorkflowExecutor:
             if isinstance(value, str) and value.startswith('${') and value.endswith('}'):
                 ref_path = value[2:-1]
                 parts = ref_path.split('.')
-                
                 if parts[0] in self.task_outputs:
                     task_output = self.task_outputs[parts[0]][parts[1]]
                     for part in parts[2:]:  
@@ -33,6 +35,7 @@ class LocalWorkflowExecutor:
                     processed_inputs[key] = task_output
             else:
                 processed_inputs[key] = value
+        print ("processed_inputs:", processed_inputs)
         return processed_inputs
 
 
@@ -44,11 +47,12 @@ class LocalWorkflowExecutor:
         for i, task_def in enumerate(workflow_def.tasks):
             if i == 0:
                 task_def.input_parameters = start_request.input
-            print ("RUNNING TASK:", task_def.to_dict()["name"], self.evaluate_input_parameters(task_def.to_dict()))
             try:
+                print ("RUNNING TASK:", task_def.to_dict()["name"], self.evaluate_input_parameters(task_def.to_dict()))
                 output = self.execute_task(task_def.to_dict(), workers)
             except Exception as e:
                 logging.error(f"Error executing task {task_def.to_dict()['name']}: {str(e)}")
+                print ({"error": str(e),"class":task_def.to_dict()['name'], "traceback": traceback.format_exc(), "input": self.evaluate_input_parameters(task_def.to_dict())})
                 return {"error": str(e),"class":task_def.to_dict()['name'], "traceback": traceback.format_exc(), "input": self.evaluate_input_parameters(task_def.to_dict())}
         return output
 
@@ -99,11 +103,17 @@ class LocalWorkflowExecutor:
                     
         elif task_type == 'SWITCH':
             case_value = self.evaluate_input_parameters(task)['switchCaseValue']
+            if type(case_value) == bool:
+                case_value = str(case_value).lower()
             if case_value in task['decision_cases']:
+                print ("case_value in task['decision_cases']")
                 for case_task in task['decision_cases'][case_value]:
+                    print ("RUNNING CASE TASK:", case_task.to_dict()["name"])
                     self.execute_task(case_task.to_dict(), workers)
             else:
+                print ("case_value not in task['decision_cases']")                
                 for default_task in task.get('defaultCase' if 'defaultCase' in task else 'default_case', []):
+                    print ("RUNNING CASE TASK:", default_task.to_dict()["name"])
                     self.execute_task(default_task.to_dict(), workers)
                     
         return self.task_outputs

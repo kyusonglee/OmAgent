@@ -4,12 +4,11 @@ import requests
 from PIL import Image
 from io import BytesIO
 import base64
-import torch
-from diffusers import LDMSuperResolutionPipeline
+
 
 ARGSCHEMA = {
     "image": {
-        "type": "dict",
+        "type": "any",
         "description": "Image to be processed, can be a URL, local path, or base64 encoded image.",
         "required": True,
     }
@@ -19,7 +18,7 @@ ARGSCHEMA = {
 class SuperResolution(BaseModelTool):
     args_schema: ArgSchema = ArgSchema(**ARGSCHEMA)
     description: str = "Super resolution tool using LDM Super Resolution pipeline from Diffusers."
-    model_id: str = "CompVis/ldm-super-resolution-4x-openimages"      
+    api_url: str = "http://10.0.0.26:8010/superres"      
 
     def _run(
         self,
@@ -28,34 +27,46 @@ class SuperResolution(BaseModelTool):
         **kwargs,
     ) -> dict:
         """
-        Run super resolution on the provided image.
+        Run super resolution on the provided image by calling an external API.
 
         Args:
             image: Image input which can be a URL string, base64 string, or PIL image.
         Returns:
             dict: A dictionary containing the upscaled PIL image.
         """
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.pipeline = LDMSuperResolutionPipeline.from_pretrained(self.model_id)
-        self.pipeline = self.pipeline.to(device)
-
-        # Load image based on its type
+        # Determine the type of image input and prepare the payload
+        payload = {}
         if isinstance(image, str):
-            # If image is a URL
             if image.startswith('http://') or image.startswith('https://'):
-                response = requests.get(image)
-                pil_image = Image.open(BytesIO(response.content)).convert("RGB")
+                payload = {"image_url": image}
             else:
                 # Assume it's a base64 string
-                image_bytes = base64.b64decode(image)
-                pil_image = Image.open(BytesIO(image_bytes)).convert("RGB")
+                payload = {"base64_image": image}
         elif isinstance(image, Image.Image):
-            # If image is a PIL image
-            pil_image = image
+            # Convert the PIL image to a base64 string
+            buffered = BytesIO()
+            image.save(buffered, format="PNG")
+            base64_image = base64.b64encode(buffered.getvalue()).decode()
+            payload = {"base64_image": base64_image}
         else:
             raise ValueError("Unsupported image type. Please use a URL string, base64 string, or PIL image.")
 
-        # Run the super resolution pipeline
-        upscaled_image = self.pipeline(pil_image, num_inference_steps=100, eta=1.0).images[0]
+        # URL of the FastAPI endpoint
+        api_url = self.api_url
 
-        return {"upscaled_image": upscaled_image}
+        # Send a POST request to the API endpoint
+        response = requests.post(api_url, json=payload)
+
+        if response.status_code == 200:
+            data = response.json()
+            encoded_image = data.get("upscaled_image")
+            if not encoded_image:
+                raise ValueError("No upscaled image found in response.")
+
+            # Decode the base64 string into image bytes
+            image_bytes = base64.b64decode(encoded_image)
+            upscaled_image = Image.open(BytesIO(image_bytes))
+
+            return {"upscaled_image": upscaled_image}
+        else:
+            raise RuntimeError(f"Error from API: {response.status_code} {response.text}")

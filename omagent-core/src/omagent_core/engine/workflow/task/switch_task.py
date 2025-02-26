@@ -7,13 +7,19 @@ from omagent_core.engine.workflow.task.task import (
     TaskInterface, get_task_interface_list_as_workflow_task_list)
 from omagent_core.engine.workflow.task.task_type import TaskType
 from typing_extensions import Self
-
+import os
 
 class EvaluatorType(str, Enum):
     JAVASCRIPT = ("javascript",)
     ECMASCRIPT = ("graaljs",)
     VALUE_PARAM = "value-param"
 
+def get_task_interface_list_as_workflow_task_list_for_lite(*tasks: Self) -> List[WorkflowTask]:
+    converted_tasks = []
+    for task in tasks:        
+        #converted_tasks.append(simple_task(task_def_name=task.name, task_reference_name=task.task_reference_name, inputs=task.input_parameters))
+        converted_tasks.append(task)
+    return converted_tasks
 
 class SwitchTask(TaskInterface):
     def __init__(
@@ -42,6 +48,8 @@ class SwitchTask(TaskInterface):
             self._default_case = [deepcopy(tasks)]
         return self
 
+
+
     def to_workflow_task(self) -> WorkflowTask:
         workflow = super().to_workflow_task()
         if self._use_javascript:
@@ -53,14 +61,26 @@ class SwitchTask(TaskInterface):
             workflow.expression = "switchCaseValue"
         workflow.decision_cases = {}
         for case_value, tasks in self._decision_cases.items():
-            workflow.decision_cases[case_value] = (
-                get_task_interface_list_as_workflow_task_list(
-                    *tasks,
+            if os.getenv("OMAGENT_MODE") == "lite":
+                workflow.decision_cases[case_value] = (
+                    get_task_interface_list_as_workflow_task_list_for_lite(
+                        *tasks,
+                    )
                 )
+            else:
+                workflow.decision_cases[case_value] = (
+                    get_task_interface_list_as_workflow_task_list(
+                        *tasks,
+                    )
             )
         if self._default_case is None:
             self._default_case = []
-        workflow.default_case = get_task_interface_list_as_workflow_task_list(
-            *self._default_case
-        )
+        if os.getenv("OMAGENT_MODE") == "lite":
+            workflow.default_case = get_task_interface_list_as_workflow_task_list_for_lite(
+                *self._default_case
+            )
+        else:
+            workflow.default_case = get_task_interface_list_as_workflow_task_list(
+                *self._default_case
+            )
         return workflow

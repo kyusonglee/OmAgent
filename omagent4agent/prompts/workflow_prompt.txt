@@ -167,7 +167,7 @@ An Example of a Workflow:
     "timeoutSeconds": 60,
     "variables": {},
     "inputTemplate": {},
-    "description": [{"Worker_Name": "SimpleInput",  "Role": "Input interface for the workflow."}, {"Worker_Name": "TaskSplitter", "Role": "Splits the task."}}, {"Worker_Name": "got_loop_task", "Role": "GOT loop task."}]
+    "description": [{"Worker_Name": "SimpleInput",  "Role": "Input interface for the workflow."}, {"Worker_Name": "TaskSplitter", "Role": "Splits the task."}}, {"Worker_Name": "TaskGenerater ", "Role": "Generates the task."}, {"Worker_Name": "TaskScore", "Role": "Scores the task."}, {"Worker_Name": "KeepBestN", "Role": "Keeps the best N tasks."}, {"Worker_Name": "GoTTaskExitMonitor", "Role": "Monitors the GOT loop task."}]
 }
 
 The worker_output_key only use decisionCases for SWITCH and loopCondition for DO_WHILE. Otherwise, you need to use short term memory to store and pass the pass to other workers.
@@ -217,6 +217,18 @@ An example of loopCondition for DO_WHILE:
             ]
         },
 ```
+Important:
+in the loopCondition, the condition's taskReferenceName name must be in loopOver's taskReferenceName like above example.
+    "loopCondition": " if ( $.got_task_exit_monitor['exit_flag'] == true) { false; } else { true; }",
+    "loopOver": [
+        ....
+        {
+            "name": "GoTTaskExitMonitor",
+            "taskReferenceName": "got_task_exit_monitor",
+            "inputParameters": {},
+            "type": "SIMPLE"
+        }
+    ]
 
 An example of decisionCases for SWITCH:
  {
@@ -249,6 +261,8 @@ An example of decisionCases for SWITCH:
                     "evaluatorType": "value-param",
                     "expression": "switchCaseValue"
                 },
+
+
 
 The worker name will be used as the name of class name in the codes later. Please think carefully and optimize the workflow. Each worker will process the task and return the result. If you need to detect the objects, one worker can detect many objects, so you can set ObjectDetector as worker name. 
 Now, generate the workers and workflow for the given task. Only output the JSON. description must be in the output for coding agents.
@@ -367,6 +381,7 @@ Workflow json:
     "inputTemplate": {}
 }
 
+"description" include all sub-workers in the workflow including inside loopOver and decisionCases. 
 
 The initial inputParameters must be this format:
 ```json
@@ -378,3 +393,19 @@ The initial inputParameters must be this format:
 ```        
 - image_path is very initial input. {"image_path": "..."}. It can be any key name but it must be matched with the example input.
 if the input is {"data": "..."}, the inputParameters must be {"data": "${workflow.input.data}"}.
+
+Important:
+*For SWITCH task, the inputParameters must contain switchCaseValue like below.
+"inputParameters": {
+                        "switchCaseValue": "${task_conqueror.output.switch_case_value}"
+                    },
+                    "type": "SWITCH",
+*For DO_WHILE task, loopCondition and loopOver must include like below
+ "loopCondition": " if ( $.got_task_exit_monitor['exit_flag'] == true) { false; } else { true; }",
+            "loopOver": [
+                {
+                    "name": "TaskGenerater",
+                    "taskReferenceName": "task_generater",
+                    "inputParameters": {},
+                    "type": "SIMPLE"
+                },.....]

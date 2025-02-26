@@ -30,12 +30,13 @@ class OmAgentMaker(BaseLLMBackend):
             PromptTemplate.from_file("prompts/worker_prompt.txt", role="system"),
             PromptTemplate.from_file("prompts/config_prompt.txt", role="system"),
             PromptTemplate.from_file("prompts/debug_prompt.txt", role="system"),
+            PromptTemplate.from_file("prompts/workflow_code_prompt.txt", role="system"), 
         ]
     )
     llm: OpenaiGPTLLM ={
         "name": "OpenaiGPTLLM", 
         "model_id": "gpt-4o", 
-        "api_key": os.getenv("custom_openai_key"), 
+        "api_key": "",
         "vision": True,
         "response_format": "json_object"
         }
@@ -74,13 +75,20 @@ class OmAgentMaker(BaseLLMBackend):
         self.create_directory_structure(folder)
 
         # Step 2: Define workers and workflow (now including the planning text)
-        workflow_info = self.define_workers_and_workflow(prompt, input, folder, plan)
+        while True:
+            workflow_info = self.define_workers_and_workflow(prompt, input, folder, plan)
+            # Validate the generated workflow JSON
+            if self.validate_workflow_json(workflow_info['workflow']):
+                break
+            print("Invalid workflow JSON, regenerating...")
 
         # Step 3: Implement workers
         generated_workers = self.implement_workers(folder, workflow_info)
+
+        #self.generate_workflow_code(folder, workflow_info, generated_workers)  
         
         # Step 4: Save configuration files
-        self.save_configuration_files(folder, generated_workers)
+        self.save_configuration_files(folder, generated_workers)    
 
         # Step 5: Execute the workflow
         #self.execute_workflow(input, folder, workflow_info, generated_workers)
@@ -91,6 +99,17 @@ class OmAgentMaker(BaseLLMBackend):
 
         # Step 6: Debugging and error handling
         #self.debug_and_retry(folder)
+    def generate_workflow_code(self, folder: str, workflow_info: dict, generated_workers: dict):
+        workflow_code_prompt = self.prompts[4].format(
+            workflow_json=workflow_info['workflow'],
+            simple_codes="\n".join(
+                "".join(worker["simple_codes"]) if isinstance(worker["simple_codes"], list) else worker["simple_codes"]
+                for worker in generated_workers["workers"]
+            )
+        )
+        workflow_code = self.call_llm(workflow_code_prompt)
+        with open(os.path.join(folder, "workflow.py"), "w") as f:
+            f.write(workflow_code)
 
     def debug(self, inputs: dict, folder: str):
         while True:
@@ -116,6 +135,7 @@ class OmAgentMaker(BaseLLMBackend):
 
             # Execute with fresh modules
             output = self.execute_workflow_from_folder(inputs=inputs, folder=folder)
+            print (output)
             if "error" not in output:
                 break
             
@@ -172,7 +192,7 @@ class OmAgentMaker(BaseLLMBackend):
         prompt = self.prompts[0].format(content=prompt, input=input, plan=plan)
         
         # Call the LLM with the generated prompt
-        llm_response = self.call_llm(prompt)
+        llm_response = self.call_llm(prompt).strip()
         print(llm_response)
 
         # Check if the response contains code fences and remove them
@@ -201,6 +221,7 @@ class OmAgentMaker(BaseLLMBackend):
         workers_section = workflow_info['workflow_description']
         generated_workers = {"workers": [], "name":workflow_info['workflow_name'], "workflow_path": workflow_info['workflow_path']}
         codes = []
+        simple_codes = []
         for worker in workers_section:   
             if worker["Worker_Name"] == "InputInterface":
                 continue
@@ -216,10 +237,11 @@ class OmAgentMaker(BaseLLMBackend):
             if "```python" in llm_response:
                 llm_response = llm_response.split("```python")[1].split("```")[0]            
             codes.append("# worker name: "+worker["Worker_Name"]+"\n"+llm_response)
+            simple_codes.append("# worker name: "+worker["Worker_Name"]+"\n how to import: from agents."+worker["Worker_Name"]+"."+worker["Worker_Name"]+" import "+worker["Worker_Name"]+"\n simple code: "+self.keep_only_class_and_return(llm_response))
             with open(worker_file_path, 'w') as f:
                 f.write(llm_response)
             
-            generated_workers["workers"].append({"worker_name": worker['Worker_Name'], "worker_file_path": worker_file_path, "code": llm_response})
+            generated_workers["workers"].append({"worker_name": worker['Worker_Name'], "worker_file_path": worker_file_path, "code": llm_response, "simple_codes": simple_codes})
         
         agents_dir = os.path.join(folder, "agents")
         for root, dirs, files in os.walk(agents_dir):
@@ -232,6 +254,13 @@ class OmAgentMaker(BaseLLMBackend):
                     print(f"Ensured sub-package: {init_file}")
 
         return generated_workers
+
+    def keep_only_class_and_return(self, code: str):
+        simple_code = ""
+        for line in code.split("\n"):
+            if "class" in line or "def" in line or "return" in line:
+                simple_code += line+"\n"
+        return simple_code
 
     def save_configuration_files(self, folder: str, generated_workers: dict):
         # Save default LLM configuration for gpt4o
@@ -387,13 +416,51 @@ class OmAgentMaker(BaseLLMBackend):
          
         return llm_response
         
+    def validate_workflow_json(self, workflow_json: dict) -> bool:
+        """
+        Validate the generated workflow JSON based on specific rules.
+
+        Returns:
+            bool: True if the JSON is valid, False otherwise.
+        """
+        # Check for SWITCH task type
+        for task in workflow_json.get('tasks', []):
+            if task['type'] == 'SWITCH':
+                if not task.get('inputParameters'):
+                    print(f"Error: SWITCH task '{task['name']}' has empty inputParameters.")
+                    return False
+
+        # Check for DO_WHILE task type
+        for task in workflow_json.get('tasks', []):
+            if task['type'] == 'DO_WHILE':
+                loop_condition = task.get('loopCondition')
+                loop_over = task.get('loopOver', [])
+                if not loop_condition or not loop_over:
+                    print(f"Error: DO_WHILE task '{task['name']}' is missing loopCondition or loopOver.")
+                    return False
+                # Extract taskReferenceName from loopCondition
+                task_ref_name = loop_condition.split('$.')[1].split('[')[0]
+                if not any(t['taskReferenceName'] == task_ref_name for t in loop_over):
+                    print(f"Error: taskReferenceName '{task_ref_name}' in loopCondition is not in loopOver for task '{task['name']}'.")
+                    return False
+
+        # Check for description inclusion
+        description = workflow_json.get('description', [])
+        all_worker_names = {task['name'] for task in workflow_json.get('tasks', [])}
+        for desc in description:
+            if desc['Worker_Name'] not in all_worker_names:
+                print(f"Error: Worker '{desc['Worker_Name']}' in description is not in tasks.")
+                return False
+
+        return True
+
 if __name__ == "__main__":    
     auto_agent = OmAgentMaker()
-    
-    auto_agent.generate_agent(input={"image_path": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, 
-        prompt="detect mouse in the kitchen and tell me what is the mouse doing. If there is no mouse, please check again with zoom in the image. If mouse is detected, then please confirm again with llm", 
-        folder="mouse_in_the_kitchen"
-    )
+    print ("start")
+    #auto_agent.generate_agent(input={"image_path": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, 
+    #    prompt="detect mouse in the kitchen and tell me what is the mouse doing. If there is no mouse, please check again with zoom in the image. If mouse is detected, then please confirm again with llm", 
+    #    folder="mouse_in_the_kitchen"
+    #)
     
     
     
@@ -402,6 +469,6 @@ if __name__ == "__main__":
     #    folder="overflowing_trash_can"
     #)
     #auto_agent.execute_workflow_from_folder(inputs={"image": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, folder="mouse_in_the_kitchen")
-    #auto_agent.debug(inputs={"image_path": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg"}, folder="mouse_in_the_kitchen")
+    auto_agent.debug(inputs={"image_path": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg"}, folder="mouse_in_the_kitchen")
     #auto_agent.execute_workflow_from_folder(inputs={"image": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, folder="mouse_in_the_kitchen")
 

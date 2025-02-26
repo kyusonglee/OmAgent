@@ -13,6 +13,7 @@ from omagent_core.engine.workflow.task.fork_task import ForkTask
 from omagent_core.engine.workflow.task.join_task import JoinTask
 from omagent_core.engine.workflow.task.set_variable_task import SetVariableTask
 from omagent_core.engine.workflow.task.switch_task import SwitchTask
+from omagent_core.engine.workflow.task.do_while_task import DoWhileTask
 from omagent_core.engine.workflow.task.task import TaskInterface
 from omagent_core.engine.workflow.task.task_type import TaskType
 from omagent_core.engine.workflow.task.timeout_policy import TimeoutPolicy
@@ -211,7 +212,22 @@ class ConductorWorkflow:
             data = json.load(file)
         workflow_def = to_workflow_def(json_data=data)
         self.name = workflow_def.name
-        self._tasks = [simple_task(task_def_name=task.name, task_reference_name=task.task_reference_name, inputs=task.input_parameters) for task in workflow_def.tasks]
+        self._tasks = []
+        for task in workflow_def.tasks:            
+            if task.type == TaskType.SWITCH:                
+                switch_task = SwitchTask(task_ref_name=task.task_reference_name, case_expression=task.input_parameters.get('switchCaseValue'))
+                if "default" in task.to_dict():
+                    switch_task.default_case(task.to_dict().pop("default"))
+                #print (task.to_dict())
+                #exit()
+                for key, value in task.to_dict()["decision_cases"].items():
+                    switch_task.switch_case(key, value)
+                self._tasks.append(switch_task)
+
+            elif task.type == TaskType.DO_WHILE:
+                self._tasks.append(DoWhileTask(task_ref_name=task.task_reference_name, termination_condition=task.loop_condition, tasks=task.loop_over))
+            else:
+                self._tasks.append(simple_task(task_def_name=task.name, task_reference_name=task.task_reference_name, inputs=task.input_parameters))
         self._input_parameters = workflow_def.input_parameters
         self._output_parameters = workflow_def.output_parameters
         self._failure_workflow = workflow_def.failure_workflow
@@ -220,7 +236,7 @@ class ConductorWorkflow:
         self._input_template = workflow_def.input_template
         self._workflow_status_listener_enabled = workflow_def.workflow_status_listener_enabled
         self._owner_email = workflow_def.owner_email
-
+        
     
 
     # Register the workflow definition with the server. If overwrite is set, the definition on the server will be
