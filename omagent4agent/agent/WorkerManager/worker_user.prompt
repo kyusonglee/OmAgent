@@ -348,5 +348,27 @@ if an value of inputParameters is "${object_detection.output.mouse_detected}", i
 in object_detection worker, the function of _run return should be like below:
 return {"mouse_detected": ...}
 
+Here is the simple example of using LLM to solve the task:
+```python
+from omagent_core.engine.worker.base import BaseWorker
+from omagent_core.utils.registry import registry
+from omagent_core.models.llms.base import BaseLLMBackend, BaseLLM
+
+@registry.register_worker()
+class simple_llm(BaseWorker, BaseLLMBackend):
+    llm: BaseLLM
+    prompts: List[PromptTemplate] = Field(
+        default=[
+            PromptTemplate.from_template("You are a helpful assistant.", role="system"),
+            PromptTemplate.from_template("translate the following text {{source_text}} in {{target_language}}.", role="user"),
+        ]
+    )
+    output_parser: StrParser = StrParser()
+    def _run(self, source_text: str, target_language: str, *args, **kwargs):
+        simple_res = self.simple_infer(source_text=source_text, target_language=target_language)        
+        return self.output_parser.parse(simple_res)
+```
+
+
 Previous codes (Please use the previous codes to implement the worker like how to set and use stm and input and output. If there is no previous codes, please implement the worker from scratch.. ):
 {{previous_codes}}

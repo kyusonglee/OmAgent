@@ -48,7 +48,7 @@ class LocalWorkflowExecutor:
             if i == 0:
                 task_def.input_parameters = start_request.input
             try:
-                print ("RUNNING TASK:", task_def.to_dict()["name"], self.evaluate_input_parameters(task_def.to_dict()))
+                print ("RUNNING TASK:", task_def.to_dict()["name"])
                 output = self.execute_task(task_def.to_dict(), workers)
             except Exception as e:
                 logging.error(f"Error executing task {task_def.to_dict()['name']}: {str(e)}")
