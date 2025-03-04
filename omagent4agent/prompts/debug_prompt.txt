@@ -5,5 +5,3 @@ Workflow: {{workflow}}
 Error message: {{error_message}}
 Code: {{code}}
 
-if there is an error on workflow, please fix the workflow and return the corrected workflow. If there is an error on code, please fix the code and return the corrected code.
-It should be entire code or json. When generating json, please generate only json without any other comments.

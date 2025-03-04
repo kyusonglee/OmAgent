@@ -74,60 +74,28 @@ class InputInterface(BaseWorker):
 from omagent_core.engine.worker.base import BaseWorker
 from omagent_core.models.llms.base import BaseLLMBackend
 from omagent_core.models.llms.openai_gpt import OpenaiGPTLLM
-from omagent_core.models.llms.prompt.parser import StrParser
-from omagent_core.models.llms.schemas import Content, Message
 from omagent_core.utils.container import container
-from omagent_core.utils.general import encode_image
 from omagent_core.utils.registry import registry
+from omagent_core.models.llms.prompt import PromptTemplate
+from pydantic import Field
 
 @registry.register_worker()
 class SimpleVQA(BaseWorker, BaseLLMBackend):
-    """Simple Visual Question Answering processor that handles image-based questions.
-    This processor:
-    1. Takes user instruction and cached image from workflow context
-    2. Creates chat messages containing the text question and base64-encoded image
-    3. Sends messages to LLM to generate a response
-    4. Returns response and sends it via callback
-    """
+    prompts: List[PromptTemplate] = Field(
+        default=[
+            PromptTemplate.from_template("You are a helpful assistant.", role="system"),
+            PromptTemplate.from_template("{{user_instruction}}, {{image}}", role="user"),
+        ]
+    )
     llm: OpenaiGPTLLM
-    def _run(self, *args, **kwargs):
-        # Initialize empty list for chat messages
-        chat_message = []
+    def _run(self, *args, **kwargs):        
         user_instruction = self.stm(self.workflow_instance_id)["user_instruction"]
-        # Add text question as first message
-        chat_message.append(
-            Message(role="user", message_type="text", content=user_instruction)
+        image_url = self.stm(self.workflow_instance_id)["image_cache"]["<image_0>"]
+        img = read_image(input_source=image_url)
+        chat_completion_res = self.simple_infer(user_instruction=user_instruction, image=img)["choices"][0]["message"].get(
+            "content"
         )
-
-        # Retrieve cached image from workflow shared memory
-        if self.stm(self.workflow_instance_id).get("image_cache", None):
-            img = self.stm(self.workflow_instance_id)["image_cache"]["<image_0>"]
-
-            # Add base64 encoded image as second message
-            chat_message.append(
-                Message(
-                    role="user",
-                    message_type="image",
-                    content=[
-                        Content(
-                            type="image_url",
-                            image_url={
-                                "url": f"data:image/jpeg;base64,{encode_image(img)}"
-                            },
-                        )
-                    ],
-                )
-            )
-
-        # Get response from LLM model
-        chat_complete_res = self.llm.generate(records=chat_message)
-
-        # Extract answer text from response
-        answer = chat_complete_res["choices"][0]["message"]["content"]
-
-        # Send answer via callback and return
-        self.callback.send_answer(self.workflow_instance_id, msg=answer)
-        return answer
+        return {"last_output": chat_completion_res}
 ```
 Workflow json:
 ```json
@@ -183,72 +151,6 @@ If you need to process the image, if the image is url, you can use the url direc
 
 the the return of def _run can be empty many times. If there are SWITCH or DO_WHILE, the return of def _run must be dictionary for decisionCases or loopCondition. The last worker in the workflow must return the result.
 
-
-There are two available functions from omagent_core.utils.general import read_image, encode_image
-Do not use other functions from omagent_core.utils.general.
-
-```python
-def encode_image(input):
-    def _encode(img):
-        output_buffer = BytesIO()
-        img.save(output_buffer, format="JPEG")
-        byte_data = output_buffer.getvalue()
-        base64_str = base64.b64encode(byte_data)
-        base64_str = str(base64_str, encoding="utf-8")
-        return base64_str
-
-    input = input.convert("RGB")
-    if isinstance(input, list):
-        res = []
-        for img in input:
-            res.append(_encode(img))
-        return res
-    else:
-        return _encode(input)
-
-def read_image(input_source) -> Image.Image:
-    """
-    Read an image from a local path, URL, PIL Image object, or Path object.
-
-    Args:
-        input_source (str or PIL.Image.Image or Path): The source of the image.
-            Can be a local file path, a URL, a PIL Image object, or a Path object.
-
-    Returns:
-        PIL.Image.Image: The image as a PIL Image object.
-
-    Raises:
-        ValueError: If the input source is invalid or the image cannot be read.
-    """
-    if isinstance(input_source, Image.Image):
-        return input_source
-
-    if isinstance(input_source, (str, Path)):
-        if isinstance(input_source, str) and input_source.startswith(
-            ("http://", "https://")
-        ):
-            # URL
-            try:
-                response = requests.get(input_source)
-                response.raise_for_status()
-                return Image.open(BytesIO(response.content))
-            except requests.RequestException as e:
-                raise ValueError(f"Failed to fetch image from URL: {e}")
-        elif os.path.isfile(str(input_source)):
-            # Local file path or Path object
-            try:
-                return Image.open(input_source)
-            except IOError as e:
-                raise ValueError(f"Failed to open local image file: {e}")
-        else:
-            raise ValueError(
-                "Invalid input source. Must be a valid URL or local file path."
-            )
-
-    raise ValueError(
-        "Invalid input type. Must be a string (URL or file path), Path object, or PIL Image object."
-    )
-```
 
 The worker code must be complete. Do not use Placeholder or Dummy function.
 
@@ -347,6 +249,36 @@ if an value of inputParameters is "${object_detection.output.mouse_detected}", i
 
 in object_detection worker, the function of _run return should be like below:
 return {"mouse_detected": ...}
+
+The following worker is how to use self.simple_infer which can call llm and vlm with prompts
+```python   
+from omagent_core.engine.worker.base import BaseWorker
+from omagent_core.models.llms.base import BaseLLM
+from omagent_core.models.llms.openai_gpt import OpenaiGPTLLM
+from omagent_core.utils.container import container
+from omagent_core.utils.registry import registry
+from pydantic import Field
+
+
+@registry.register_worker()
+class SimpleVQA(BaseWorker, BaseLLMBackend):
+    prompts: List[PromptTemplate] = Field(
+        default=[
+            PromptTemplate.from_template("You are a helpful assistant.", role="system"),
+            PromptTemplate.from_template("{{user_instruction}}, {{image}}", role="user"),
+        ]
+    )
+    llm: BaseLLM  # do not assign any value here. 
+    def _run(self, *args, **kwargs):        
+        user_instruction = self.stm(self.workflow_instance_id)["user_instruction"]
+        image_url = self.stm(self.workflow_instance_id)["image_cache"]["<image_0>"]
+        img = read_image(input_source=image_url)
+        chat_completion_res = self.simple_infer(user_instruction=user_instruction, image=img)["choices"][0]["message"].get(
+            "content"
+        )
+        return {"last_output": chat_completion_res}
+```
+Please use this example to call llm and vlm with prompts that you generated based on the task. if PromptTemplate.from_template has {{image}} only then self.simple_infer will have one image parameter (e.g., self.simple_infer(image=img)). if from_template has {{user_instruction}} and {{image}} then self.simple_infer will have two parameters (e.g., self.simple_infer(user_instruction=user_instruction, image=img)). It should be matched with  PromptTemplate.from_file and self.simple_infer.
 
 Previous codes (Please use the previous codes to implement the worker like how to set and use stm and input and output. If there is no previous codes, please implement the worker from scratch.. ):
 {{previous_codes}}

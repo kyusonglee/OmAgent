@@ -21,6 +21,9 @@ import os
 import sys
 import glob
 import shutil
+import traceback
+import re 
+
 os.environ["OMAGENT_MODE"] = "lite"
 
 class OmAgentMaker(BaseLLMBackend):
@@ -37,6 +40,7 @@ class OmAgentMaker(BaseLLMBackend):
         "name": "OpenaiGPTLLM", 
         "model_id": "gpt-4o", 
         "vision": True,
+        "api_key": os.getenv("custom_openai_key"),
         "response_format": "json_object",
         "use_default_sys_prompt":False
         }
@@ -132,7 +136,16 @@ class OmAgentMaker(BaseLLMBackend):
             target_folder = os.path.abspath(folder)
             if target_folder not in sys.path:
                 sys.path.insert(0, target_folder)
-            registry.import_module(os.path.join(target_folder, "agents"))
+            try:
+                registry.import_module(os.path.join(target_folder, "agents"))
+            except Exception as e:
+                temp = {}
+                temp["traceback"] = traceback.format_exc()
+                temp["input"] = inputs
+                temp["error"] = str(e)                
+                temp["class"] = re.search(f'File ".*/{folder}/agents/(.*).py', temp["traceback"]).group(1).split("/")[0]                
+                self.debug_and_retry(temp, folder, inputs)
+                continue
 
             # Execute with fresh modules
             output = self.execute_workflow_from_folder(inputs=inputs, folder=folder)
@@ -325,8 +338,9 @@ class OmAgentMaker(BaseLLMBackend):
             llm: ${sub|text_res}
             tools:
              - name: GeneralOD    
-               url: http://localhost:8005/inf_predict
+               url: http://10.0.0.132:8005/inf_predict
              - name: SuperResolution
+               api_url: http://10.0.0.26:8010/superres
              - name: TavilyWebSearch
                tavily_api_key: ${env|tavily_api_key, null}
         """)
@@ -471,29 +485,31 @@ class OmAgentMaker(BaseLLMBackend):
                     return False
 
         # Check for description inclusion
-        description = workflow_json.get('description', [])
-        all_worker_names = {task['name'] for task in workflow_json.get('tasks', [])}
-        for desc in description:
-            if desc['Worker_Name'] not in all_worker_names:
-                print(f"Error: Worker '{desc['Worker_Name']}' in description is not in tasks.")
-                return False
+        #description = workflow_json.get('description', [])
+        #all_worker_names = {task['name'] for task in workflow_json.get('tasks', [])}
+        #for desc in description:
+        #    if desc['Worker_Name'] not in all_worker_names:
+        #        print(f"Error: Worker '{desc['Worker_Name']}' in description is not in tasks.")
+        #        return False
 
         return True
 
 if __name__ == "__main__":    
     auto_agent = OmAgentMaker()
-    print ("start")
-    #auto_agent.generate_agent(input={"image_path": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, 
-    #    prompt="detect mouse in the kitchen and tell me what is the mouse doing. If there is no mouse, please check again with zoom in the image. If mouse is detected, then please confirm again with llm", 
-    #    folder="mouse_in_the_kitchen"
+    print ("start")    
+    
+    auto_agent.generate_agent(input={"image_path": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, 
+        prompt="detect mouse in the kitchen and tell me what is the mouse doing. If there is no mouse, please check again with zoom in the image. If mouse is detected, then please confirm again with llm. The output should save the image with the bbox if the mouse is detected.", 
+        folder="mouse_in_the_kitchen"
+    )  
+    
+    
+    
+    #auto_agent.generate_agent(input={"task": "I'd like to make "}, 
+    #    prompt="Overflowing trash can identification. The overflowing garbage bin mouth needs to be in a state of visible garbage", 
+    #    folder="overflowing_trash_can"
     #)
-    
-    
-    auto_agent.generate_agent(input={"task": "I'd like to make "}, 
-        prompt="Overflowing trash can identification. The overflowing garbage bin mouth needs to be in a state of visible garbage", 
-        folder="overflowing_trash_can"
-    )
     #auto_agent.execute_workflow_from_folder(inputs={"image": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, folder="mouse_in_the_kitchen")
-    auto_agent.debug(inputs={"image_path": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg"}, folder="mouse_in_the_kitchen")
+    auto_agent.debug(inputs={"image_path": "/Users/kyusonglee/Downloads/rat.jpg"}, folder="mouse_in_the_kitchen")
     #auto_agent.execute_workflow_from_folder(inputs={"image": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, folder="mouse_in_the_kitchen")
 
