@@ -16,6 +16,10 @@ The worker code will be given as the following:
 ```python
 {{code}}
 ```
+Here is the error message. If there is error message, please fix the code. and return the corrected code with the following format. ({"is_correct": False, "error_message": "....", "corrected_code": "....", "new_code": "...."}
+). If error message is empty, please check the code carefully if there is any error.
+Error message: {{error_message}}
+
 
 The return should be json with the following keys:
 - is_correct: boolean, whether the code is correct and working. (if is_correct is True, the corrected_code, error_message and new_code will be empty)

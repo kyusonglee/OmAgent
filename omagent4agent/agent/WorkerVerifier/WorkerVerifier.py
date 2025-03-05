@@ -26,19 +26,23 @@ class WorkerVerifier(BaseLLMBackend, BaseWorker):
         ]
     )
     llm: BaseLLM
-    output_parser: DictParser = DictParser()
-    def _run(self, *args, **kwargs):        
-        
+    def _run(self, *args, **kwargs):                
         generated_workers = self.stm(self.workflow_instance_id)["generated_workers"]       
         folder_path = self.stm(self.workflow_instance_id)["folder_path"]
         for worker in generated_workers["workers"]:
             code = worker["code"]
             worker_name = worker["worker_name"]
-            worker_file_path = worker["worker_file_path"]            
-            output = self.simple_infer(code=code)["choices"][0]["message"].get("content")
-            print (output)
-            output = self.output_parser.parse(output)
-            print (output)
+            worker_file_path = worker["worker_file_path"]  
+            import_error_check = self.test_import(code)
+            if not import_error_check["is_correct"]:
+                print ("The code is not correct. import error.", worker_name, worker_file_path)
+                error_message = import_error_check["error_message"]
+                output = self.simple_infer(code=code, error_message=error_message)["choices"][0]["message"].get("content")
+                output = self.parser(output)
+            else:
+                output = self.simple_infer(code=code, error_message="None")["choices"][0]["message"].get("content")
+                output = self.parser(output)
+            
             if output["is_correct"]:
                 print ("The code is correct and working.", worker_name, worker_file_path)
                 continue
@@ -58,6 +62,25 @@ class WorkerVerifier(BaseLLMBackend, BaseWorker):
                         f.write(new_code)
                 else:
                     print ("The new code is not saved.")
+    def parser(self, output):
+        if "```json" in output:
+            output = output.split("```json")[1].split("```")[0]
+        output = json.loads(output)
+        return output
 
-
+    def test_import(self, code):
+        import_code_only = []
+        for line in code.split("\n"):            
+            if "@registry.register_worker()" in line:
+                break
+            import_code_only.append(line)
+        try:
+            print ("import_code_only")
+            print ("\n".join(import_code_only))
+            exec("\n".join(import_code_only))
+        except ImportError as e:
+            print ({"is_correct": False, "error_message": str(e)})
+            return {"is_correct": False, "error_message": str(e)}
+        print ({"is_correct": True, "error_message": ""})
+        return {"is_correct": True, "error_message": ""}
     
