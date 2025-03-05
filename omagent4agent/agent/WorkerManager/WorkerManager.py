@@ -35,6 +35,7 @@ class WorkerManager(BaseLLMBackend, BaseWorker):
         folder_path = self.stm(self.workflow_instance_id)["folder_path"]
         workflow_file_name = f"{workflow_json['name']}_workflow.json"
         workflow_path = os.path.join(folder_path, workflow_file_name)
+        os.makedirs(folder_path, exist_ok=True)
         with open(workflow_path, 'w') as f:
             json.dump(workflow_json, f, indent=4)
 

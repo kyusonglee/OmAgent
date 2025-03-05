@@ -2,6 +2,7 @@ from agent.Planner.Planner import Planner
 from agent.WorkflowVerifier.WorkflowVerifier import WorkflowVerifier
 from agent.WorkflowManager.WorkflowManager import WorkflowManager
 from agent.WorkerManager.WorkerManager import WorkerManager
+from agent.WorkerVerifier.WorkerVerifier import WorkerVerifier
 
 from omagent_core.engine.workflow.conductor_workflow import ConductorWorkflow
 from omagent_core.engine.workflow.task.do_while_task import DoWhileTask
@@ -39,6 +40,10 @@ class OmAgent4Agent(ConductorWorkflow):
             task_def_name=WorkerManager,
             task_reference_name="worker_manager"
         )
+        self.worker_verifier_task = simple_task(
+            task_def_name=WorkerVerifier,
+            task_reference_name="worker_verifier"
+        )
         """
         self.switch_task = SwitchTask(
             task_ref_name="switch_task",
@@ -57,6 +62,6 @@ class OmAgent4Agent(ConductorWorkflow):
 
     def _configure_workflow(self):
         # configure workflow execution flow
-        self >> self.planner_task >> self.workflow_manager_task >> self.worker_manager_task 
+        self >> self.planner_task >> self.workflow_manager_task >> self.worker_manager_task >> self.worker_verifier_task
         #self.dnc_structure = self.task_exit_monitor_task.output("dnc_structure")
         #self.last_output = self.task_exit_monitor_task.output("last_output")

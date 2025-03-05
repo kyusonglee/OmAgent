@@ -42,4 +42,5 @@ class WorkflowVerifier(BaseWorker):
                 print(f"Error: Worker '{desc['Worker_Name']}' in description is not in tasks.")
                 return {"valid_json": False, "error": "Worker in description is not in tasks"}
         print ("Workflow is valid")
+        
         return {"valid_json": True}

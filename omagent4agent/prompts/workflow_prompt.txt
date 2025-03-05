@@ -167,8 +167,10 @@ An Example of a Workflow:
     "timeoutSeconds": 60,
     "variables": {},
     "inputTemplate": {},
-    "description": [{"Worker_Name": "SimpleInput",  "Role": "Input interface for the workflow."}, {"Worker_Name": "TaskSplitter", "Role": "Splits the task."}}, {"Worker_Name": "TaskGenerater ", "Role": "Generates the task."}, {"Worker_Name": "TaskScore", "Role": "Scores the task."}, {"Worker_Name": "KeepBestN", "Role": "Keeps the best N tasks."}, {"Worker_Name": "GoTTaskExitMonitor", "Role": "Monitors the GOT loop task."}]
+    "description": [{"Worker_Name": "SimpleInput",  "Role": "....."}, {"Worker_Name": "TaskSplitter", "Role": "....."}}, {"Worker_Name": "TaskGenerater ", "Role": "....."}, {"Worker_Name": "TaskScore", "Role": "....."}, {"Worker_Name": "KeepBestN", "Role": "....."}, {"Worker_Name": "GoTTaskExitMonitor", "Role": "....."}],
+    "reasoning": "....."
 }
+Role must be very in detail based on the plan. "reasoning" must include the reason why the workflow and workers are like this.
 
 The worker_output_key only use decisionCases for SWITCH and loopCondition for DO_WHILE. Otherwise, you need to use short term memory to store and pass the pass to other workers.
 Please do not use inputParameters if you can pass the value using short term memory. 
@@ -377,8 +379,9 @@ Workflow json:
     "ownerEmail": "default@omagent.ai",
     "timeoutSeconds": 60,
     "variables": {},
-    "description": [{"Worker_Name": "InputInterface",  "Role": "Input interface for the workflow."}, {"Worker_Name": "SimpleVQA", "Role": "Simple Visual Question Answering processor that handles image-based questions."}],
-    "inputTemplate": {}
+    "description": [{"Worker_Name": "InputInterface",  "Role": "...."}, {"Worker_Name": "SimpleVQA", "Role": "...."}],
+    "inputTemplate": {},
+    "reasoning": "....."
 }
 
 "description" include all sub-workers in the workflow including inside loopOver and decisionCases. 

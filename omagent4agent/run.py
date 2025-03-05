@@ -484,13 +484,6 @@ class OmAgentMaker(BaseLLMBackend):
                     print(f"Error: taskReferenceName '{task_ref_name}' in loopCondition is not in loopOver for task '{task['name']}'.")
                     return False
 
-        # Check for description inclusion
-        #description = workflow_json.get('description', [])
-        #all_worker_names = {task['name'] for task in workflow_json.get('tasks', [])}
-        #for desc in description:
-        #    if desc['Worker_Name'] not in all_worker_names:
-        #        print(f"Error: Worker '{desc['Worker_Name']}' in description is not in tasks.")
-        #        return False
 
         return True
 
@@ -498,18 +491,18 @@ if __name__ == "__main__":
     auto_agent = OmAgentMaker()
     print ("start")    
     
-    auto_agent.generate_agent(input={"image_path": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, 
-        prompt="detect mouse in the kitchen and tell me what is the mouse doing. If there is no mouse, please check again with zoom in the image. If mouse is detected, then please confirm again with llm. The output should save the image with the bbox if the mouse is detected.", 
-        folder="mouse_in_the_kitchen"
-    )  
+    #auto_agent.generate_agent(input={"image_path": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, 
+    #    prompt="detect mouse in the kitchen and tell me what is the mouse doing. If there is no mouse, please check again with zoom in the image. If mouse is detected, then please confirm again with llm. The output should save the image with the bbox if the mouse is detected.", 
+    #    folder="mouse_in_the_kitchen"
+    #)  
     
     
     
-    #auto_agent.generate_agent(input={"task": "I'd like to make "}, 
-    #    prompt="Overflowing trash can identification. The overflowing garbage bin mouth needs to be in a state of visible garbage", 
-    #    folder="overflowing_trash_can"
-    #)
+    auto_agent.generate_agent(input=[{"timestamp": 1, "frame_image": "frame1.jpg"}, {"timestamp": 2, "frame_image": "frame2.jpg"}, {"timestamp": 3, "frame_image": "frame3.jpg"}], 
+        prompt="The video sequence frames will be given. Detect the people who have stayed at the entrance of the finance office for more than 5 minutes. If suspect, please capture the image of the person. and save the person's image and how long they have stayed at the entrance of the finance office.", 
+        folder="person_in_the_finance_office"
+    )
     #auto_agent.execute_workflow_from_folder(inputs={"image": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, folder="mouse_in_the_kitchen")
-    auto_agent.debug(inputs={"image_path": "/Users/kyusonglee/Downloads/rat.jpg"}, folder="mouse_in_the_kitchen")
+    #auto_agent.debug(inputs={"image_path": "/Users/kyusonglee/Downloads/rat.jpg"}, folder="mouse_in_the_kitchen")
     #auto_agent.execute_workflow_from_folder(inputs={"image": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, folder="mouse_in_the_kitchen")
 
