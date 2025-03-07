@@ -4,6 +4,7 @@ from omagent_core.engine.worker.base import BaseWorker
 from omagent_core.utils.general import read_image
 from omagent_core.utils.logger import logging
 from omagent_core.utils.registry import registry
+import uuid
 
 CURRENT_PATH = Path(__file__).parents[0]
 
@@ -30,13 +31,8 @@ class InputInterface(BaseWorker):
 
         print ("initial_description",initial_description)
         
-        input = self.input.read_input(workflow_instance_id=self.workflow_instance_id, input_prompt="Path to the folder where the agent will be created.")
-        content = input['messages'][-1]['content']
-        for content_item in content:
-            if content_item['type'] == 'text':
-                folder_path = content_item['data']
-        print ("folder_path",folder_path)
-
+   
+        folder_path = "agents/"+str(uuid.uuid4())
         input = self.input.read_input(workflow_instance_id=self.workflow_instance_id, input_prompt="Give me an example input for the agent.")
         content = input['messages'][-1]['content']
         for content_item in content:

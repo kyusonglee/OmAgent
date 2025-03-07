@@ -119,10 +119,10 @@ class OmAgentMaker(BaseLLMBackend):
     def debug(self, inputs: dict, folder: str):
         while True:
             # Clear cached modules
-            agents_dir = os.path.join(folder, "agents")
+            agents_dir = os.path.join(folder, "agent")
             for module_name in list(sys.modules.keys()):
                 module = sys.modules[module_name]
-                if module_name.startswith("agents") or (hasattr(module, '__file__') and module.__file__ and agents_dir in module.__file__):
+                if module_name.startswith("agent") or (hasattr(module, '__file__') and module.__file__ and agents_dir in module.__file__):
                     del sys.modules[module_name]
                     print(module_name)
                     # Extract the class name from the module name
@@ -137,13 +137,13 @@ class OmAgentMaker(BaseLLMBackend):
             if target_folder not in sys.path:
                 sys.path.insert(0, target_folder)
             try:
-                registry.import_module(os.path.join(target_folder, "agents"))
+                registry.import_module(os.path.join(target_folder, "agent"))
             except Exception as e:
                 temp = {}
                 temp["traceback"] = traceback.format_exc()
                 temp["input"] = inputs
                 temp["error"] = str(e)                
-                temp["class"] = re.search(f'File ".*/{folder}/agents/(.*).py', temp["traceback"]).group(1).split("/")[0]                
+                temp["class"] = re.search(f'File ".*/{folder}/agent/(.*).py', temp["traceback"]).group(1).split("/")[0]                
                 self.debug_and_retry(temp, folder, inputs)
                 continue
 
@@ -168,7 +168,7 @@ class OmAgentMaker(BaseLLMBackend):
         if not task_name:
             return output
         
-        code_path = os.path.join(folder, "agents", task_name, f"{task_name}.py")
+        code_path = os.path.join(folder, "agent", task_name, f"{task_name}.py")
         with open(code_path, "r") as f:
             code = f.read()
         
@@ -196,7 +196,7 @@ class OmAgentMaker(BaseLLMBackend):
 
     def create_directory_structure(self, folder: str):
         # Create the necessary directory structure
-        os.makedirs(os.path.join(folder, 'agents'), exist_ok=True)
+        os.makedirs(os.path.join(folder, 'agent'), exist_ok=True)
         os.makedirs(os.path.join(folder, 'configs', 'llms'), exist_ok=True)
         os.makedirs(os.path.join(folder, 'configs', 'tools'), exist_ok=True)
         os.makedirs(os.path.join(folder, 'configs', 'workers'), exist_ok=True)
@@ -243,7 +243,7 @@ class OmAgentMaker(BaseLLMBackend):
             llm_response = self.call_llm(worker_prompt_template)
             print(llm_response)
             # Create a directory for the worker
-            worker_dir = os.path.join(folder, 'agents', worker["Worker_Name"])
+            worker_dir = os.path.join(folder, 'agent', worker["Worker_Name"])
             os.makedirs(worker_dir, exist_ok=True)
             
             # Save the worker implementation to a file
@@ -251,13 +251,13 @@ class OmAgentMaker(BaseLLMBackend):
             if "```python" in llm_response:
                 llm_response = llm_response.split("```python")[1].split("```")[0]            
             codes.append("# worker name: "+worker["Worker_Name"]+"\n"+llm_response)
-            simple_codes.append("# worker name: "+worker["Worker_Name"]+"\n how to import: from agents."+worker["Worker_Name"]+"."+worker["Worker_Name"]+" import "+worker["Worker_Name"]+"\n simple code: "+self.keep_only_class_and_return(llm_response))
+            simple_codes.append("# worker name: "+worker["Worker_Name"]+"\n how to import: from agent."+worker["Worker_Name"]+"."+worker["Worker_Name"]+" import "+worker["Worker_Name"]+"\n simple code: "+self.keep_only_class_and_return(llm_response))
             with open(worker_file_path, 'w') as f:
                 f.write(llm_response)
             
             generated_workers["workers"].append({"worker_name": worker['Worker_Name'], "worker_file_path": worker_file_path, "code": llm_response, "simple_codes": simple_codes})
         
-        agents_dir = os.path.join(folder, "agents")
+        agents_dir = os.path.join(folder, "agent")
         for root, dirs, files in os.walk(agents_dir):
             for d in dirs:
                 sub_folder_path = os.path.join(root, d)
@@ -395,7 +395,7 @@ class OmAgentMaker(BaseLLMBackend):
         print(f"Added {target_folder} to sys.path")
         os.environ["OMAGENT_MODE"] = "lite"
         # Now, import the agents package from the target folder
-        registry.import_module(os.path.join(target_folder, "agents"))
+        registry.import_module(os.path.join(target_folder, "agent"))
 
         with open(workflow_path) as f:
             workflow_json = json.load(f)
@@ -422,7 +422,7 @@ class OmAgentMaker(BaseLLMBackend):
         if task_name == "":
             return output
         
-        code_path = os.path.join(folder, "agents", task_name, f"{task_name}.py")
+        code_path = os.path.join(folder, "agent", task_name, f"{task_name}.py")
         with open(code_path, "r") as f:
             code = f.read()
             print(output, output)
@@ -436,7 +436,7 @@ class OmAgentMaker(BaseLLMBackend):
                     f.write(llm_response)
 
                 # Ensure the module is reloaded
-                module_name = f"agents.{task_name}"
+                module_name = f"agent.{task_name}"
                 if module_name in sys.modules:
                     # Reload the module
                     importlib.reload(sys.modules[module_name])
@@ -490,19 +490,24 @@ class OmAgentMaker(BaseLLMBackend):
 if __name__ == "__main__":    
     auto_agent = OmAgentMaker()
     print ("start")    
-    
-    #auto_agent.generate_agent(input={"image_path": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, 
-    #    prompt="detect mouse in the kitchen and tell me what is the mouse doing. If there is no mouse, please check again with zoom in the image. If mouse is detected, then please confirm again with llm. The output should save the image with the bbox if the mouse is detected.", 
-    #    folder="mouse_in_the_kitchen"
+    """    
+    auto_agent.generate_agent(input={"image_path": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, 
+        prompt="detect mouse in the kitchen and tell me what is the mouse doing. If there is no mouse, please check again with zoom in the image. If mouse is detected, then please confirm again with llm. The output should save the image with the bbox if the mouse is detected.", 
+        folder="mouse_in_the_kitchen"
+    )  
+    """
+    #auto_agent.generate_agent(input={"input": "test"}, 
+    #    prompt="very simple workflow to test SWITCH and DO_WHILE loop", 
+    #    folder="test"
     #)  
     
     
-    
-    auto_agent.generate_agent(input=[{"timestamp": 1, "frame_image": "frame1.jpg"}, {"timestamp": 2, "frame_image": "frame2.jpg"}, {"timestamp": 3, "frame_image": "frame3.jpg"}], 
-        prompt="The video sequence frames will be given. Detect the people who have stayed at the entrance of the finance office for more than 5 minutes. If suspect, please capture the image of the person. and save the person's image and how long they have stayed at the entrance of the finance office.", 
-        folder="person_in_the_finance_office"
-    )
+    #auto_agent.generate_agent(input=[{"timestamp": 1, "frame_image": "frame1.jpg"}, {"timestamp": 2, "frame_image": "frame2.jpg"}, {"timestamp": 3, "frame_image": "frame3.jpg"}], 
+    #    prompt="The video sequence frames will be given. Detect the people who have stayed at the entrance of the finance office for more than 5 minutes. If suspect, please capture the image of the person. and save the person's image and how long they have stayed at the entrance of the finance office.", 
+    #    folder="person_in_the_finance_office"
+    #)
     #auto_agent.execute_workflow_from_folder(inputs={"image": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, folder="mouse_in_the_kitchen")
     #auto_agent.debug(inputs={"image_path": "/Users/kyusonglee/Downloads/rat.jpg"}, folder="mouse_in_the_kitchen")
+    auto_agent.debug(inputs={"input": 1}, folder="test")
     #auto_agent.execute_workflow_from_folder(inputs={"image": "/Users/kyusonglee/Documents/proj/OmAgent/auto_agent/demo.jpeg"}, folder="mouse_in_the_kitchen")
 

@@ -26,14 +26,14 @@ class ExecuteAgent(BaseWorker):
             example_inputs = self.inputs["example_inputs"]
             if type(example_inputs) == str:
                 example_inputs = json.loads(example_inputs)
-                
+
             workflow_path = glob.glob(os.path.join(folder_path, "*_workflow.json"))[0]
             
             target_folder = os.path.abspath(folder_path)
             if target_folder not in sys.path:
                 sys.path.insert(0, target_folder)
             print(f"Added {target_folder} to sys.path")
-            registry.import_module(os.path.join(target_folder, "agents"))
+            registry.import_module(os.path.join(target_folder, "agent"))
 
             with open(workflow_path) as f:
                 workflow_json = json.load(f)
