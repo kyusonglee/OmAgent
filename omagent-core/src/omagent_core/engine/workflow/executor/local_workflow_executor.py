@@ -76,7 +76,6 @@ class LocalWorkflowExecutor:
             worker = worker_class()            
             """
             inputs = self.evaluate_input_parameters(task)      
-            print (inputs)      
             # Execute task
             result = worker._run(**inputs)
             # Store output
@@ -92,8 +91,10 @@ class LocalWorkflowExecutor:
                 # Execute all tasks in loop
                 for loop_task in task['loopOver' if 'loopOver' in task else 'loop_over']:                    
                     self.execute_task(loop_task, workers)
+                
                 if 'loopCondition' in task or "loop_condition" in task:
                     should_continue = self.evaluate_loop_condition(task['loopCondition' if 'loopCondition' in task else "loop_condition"])            
+                    
                     if not should_continue:
                         break
                 else:
@@ -103,7 +104,8 @@ class LocalWorkflowExecutor:
                     
         elif task_type == 'SWITCH':
             case_value = self.evaluate_input_parameters(task)['switchCaseValue']
-            if type(case_value) == bool:
+            
+            if not isinstance(case_value, str):
                 case_value = str(case_value).lower()
             if case_value in task['decision_cases']:
                 print ("case_value in task['decision_cases']")
@@ -130,7 +132,7 @@ class LocalWorkflowExecutor:
         
         # First split by OR operator (||)
         or_conditions = [cond.strip() for cond in main_condition.split('||')]
-        
+
         for or_part in or_conditions:
             # For each OR part, split by AND operator (&&)
             and_conditions = [cond.strip() for cond in or_part.split('&&')]
@@ -179,7 +181,7 @@ class LocalWorkflowExecutor:
             operator = '<'
         else:
             return False
-            
+
         # Parse left side (task reference)    
         if left.startswith('$.'):
             task_ref_full = left[2:]  # Remove $.
@@ -195,7 +197,8 @@ class LocalWorkflowExecutor:
                 properties = []
             
             # Get task output and navigate through properties
-            value = self.task_outputs.get(task_ref, {}).get('output', {}).get(array_part, {})            
+            value = self.task_outputs.get(task_ref, {}).get('output', {}).get(array_part, {})    
+            
             #if type(value) == bool:
             #    return value
             # Parse right side (could be another task reference or a literal)
