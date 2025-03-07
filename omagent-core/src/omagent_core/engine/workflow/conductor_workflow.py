@@ -214,18 +214,26 @@ class ConductorWorkflow:
         self.name = workflow_def.name
         self._tasks = []
         for task in workflow_def.tasks:            
-            if task.type == TaskType.SWITCH:                
+            if task.type == TaskType.SWITCH:                     
                 switch_task = SwitchTask(task_ref_name=task.task_reference_name, case_expression=task.input_parameters.get('switchCaseValue'))
                 if "default" in task.to_dict():
-                    switch_task.default_case(task.to_dict().pop("default"))
-                #print (task.to_dict())
-                #exit()
+                    default_tasks = []
+                    for default_task in task.to_dict().pop("default"):
+                        default_tasks.append(simple_task(task_def_name=default_task.name, task_reference_name=default_task.task_reference_name, inputs=default_task.input_parameters))
+                    switch_task.default_case(default_tasks)
+
                 for key, value in task.to_dict()["decision_cases"].items():
-                    switch_task.switch_case(key, value)
+                    case_tasks = []
+                    for case_task in value:
+                        case_tasks.append(simple_task(task_def_name=case_task.name, task_reference_name=case_task.task_reference_name, inputs=case_task.input_parameters))
+                    switch_task.switch_case(key, case_tasks)
                 self._tasks.append(switch_task)
 
             elif task.type == TaskType.DO_WHILE:
-                self._tasks.append(DoWhileTask(task_ref_name=task.task_reference_name, termination_condition=task.loop_condition, tasks=task.loop_over))
+                loop_over_tasks = []
+                for loop_task in task.loop_over:
+                    loop_over_tasks.append(simple_task(task_def_name=loop_task.name, task_reference_name=loop_task.task_reference_name, inputs=loop_task.input_parameters))
+                self._tasks.append(DoWhileTask(task_ref_name=task.task_reference_name, termination_condition=task.loop_condition, tasks=loop_over_tasks))
             else:
                 self._tasks.append(simple_task(task_def_name=task.name, task_reference_name=task.task_reference_name, inputs=task.input_parameters))
         self._input_parameters = workflow_def.input_parameters

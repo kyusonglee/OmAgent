@@ -14,12 +14,6 @@ class EvaluatorType(str, Enum):
     ECMASCRIPT = ("graaljs",)
     VALUE_PARAM = "value-param"
 
-def get_task_interface_list_as_workflow_task_list_for_lite(*tasks: Self) -> List[WorkflowTask]:
-    converted_tasks = []
-    for task in tasks:        
-        #converted_tasks.append(simple_task(task_def_name=task.name, task_reference_name=task.task_reference_name, inputs=task.input_parameters))
-        converted_tasks.append(task)
-    return converted_tasks
 
 class SwitchTask(TaskInterface):
     def __init__(
@@ -61,26 +55,15 @@ class SwitchTask(TaskInterface):
             workflow.expression = "switchCaseValue"
         workflow.decision_cases = {}
         for case_value, tasks in self._decision_cases.items():
-            if os.getenv("OMAGENT_MODE") == "lite":
-                workflow.decision_cases[case_value] = (
-                    get_task_interface_list_as_workflow_task_list_for_lite(
-                        *tasks,
-                    )
-                )
-            else:
-                workflow.decision_cases[case_value] = (
+            workflow.decision_cases[case_value] = (
                     get_task_interface_list_as_workflow_task_list(
                         *tasks,
                     )
             )
         if self._default_case is None:
             self._default_case = []
-        if os.getenv("OMAGENT_MODE") == "lite":
-            workflow.default_case = get_task_interface_list_as_workflow_task_list_for_lite(
-                *self._default_case
-            )
-        else:
-            workflow.default_case = get_task_interface_list_as_workflow_task_list(
+
+        workflow.default_case = get_task_interface_list_as_workflow_task_list(
                 *self._default_case
             )
         return workflow
