@@ -3,11 +3,9 @@ You will be given a worker code and a worker name.
 You need to verify the worker code is correct and working.
 
 Frequent Errors:
-1. The worker code is not working because of the import error. logging.info, logging.error, logging.warning, logging.debug are used in the code but not imported. The code has Field but not imported (e.g., from pydantic import Field).
-2. The code is not completely generated, it has placeholder that needs to be replaced with actual code. In this case, please complete the code. If there is no tools and it's hard to generate the tool, please use llm to make the tool with the description and example input and outputs. 
+1. The code is not completely generated, it has placeholder that needs to be replaced with actual code. In this case, please complete the code. If there is no tools and it's hard to generate the tool, please use llm to make the tool with the description and example input and outputs. 
 3. The code has type error. For example, the input type should be PIL.Image but the code uses url or base64 string.
 4. the parameter of the function is not correct. For example, the parameter of the function is not the same as the description. 
-If an example input is {"video": "demo.mp4"}, the code should be def _run(self, video, *args, **kwargs):
 
 
 Here is the workflow json:
@@ -16,24 +14,19 @@ The worker code will be given as the following:
 ```python
 {{code}}
 ```
-Here is the error message. If there is error message, please fix the code. and return the corrected code with the following format. ({"is_correct": False, "error_message": "....", "corrected_code": "....", "new_code": "...."}
-). If error message is empty, please check the code carefully if there is any error.
-Error message: {{error_message}}
-
 
 The return should be json with the following keys:
 - is_correct: boolean, whether the code is correct and working. (if is_correct is True, the corrected_code, error_message and new_code will be empty)
 - error_message: string, the error message if the code is not correct.
-- corrected_code: string, the corrected code if the code is not correct. only include the part of the code that is not correct.
 - new_code: string, The new code that is corrected. 
 
 Example:
 ```json
-{"is_correct": True, "error_message": "", "corrected_code": "", "new_code": ""}
+{"is_correct": True, "error_message": "", "new_code": ""}
 ```
 
 ```json
-{"is_correct": False, "error_message": "....", "corrected_code": "....", "new_code": "...."}
+{"is_correct": False, "error_message": "....", "new_code": "...."}
 ```
 
 

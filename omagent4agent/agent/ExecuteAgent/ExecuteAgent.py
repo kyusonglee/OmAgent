@@ -26,7 +26,6 @@ class ExecuteAgent(BaseWorker):
         if target_folder not in sys.path:
             sys.path.insert(0, target_folder)
         print(f"Added {target_folder} to sys.path")
-        os.environ["OMAGENT_MODE"] = "lite"
         registry.import_module(os.path.join(target_folder, "agents"))
 
         with open(workflow_path) as f:

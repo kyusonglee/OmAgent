@@ -32,6 +32,9 @@ class Planner(BaseLLMBackend, BaseWorker):
         print ("input",initial_description)
         plan_text = self.simple_infer(prompt=initial_description)["choices"][0]["message"].get("content")
         print (plan_text)
+        
+        self.callback.info(agent_id=self.workflow_instance_id, progress="Planner", message=plan_text)
+        
         self.stm(self.workflow_instance_id)["plan"] = plan_text
         self.stm(self.workflow_instance_id)["initial_description"] = initial_description
 

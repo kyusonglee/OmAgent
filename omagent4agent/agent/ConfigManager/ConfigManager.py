@@ -24,8 +24,6 @@ class ConfigManager(BaseWorker):
         target = os.path.join(folder_path, "configs","tools" )
         shutil.copytree(source, target) 
     
-
-
         for worker in generated_workers["workers"]:
             config_path = os.path.join(folder_path, "configs","workers", worker["worker_name"].lower()+".yaml")
             with open(config_path, 'w') as f:

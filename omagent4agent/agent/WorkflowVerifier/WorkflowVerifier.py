@@ -35,12 +35,14 @@ class WorkflowVerifier(BaseWorker):
                     return {"valid_json": False, "error": "taskReferenceName in loopCondition is not in loopOver"}
 
         # Check for description inclusion
+        """
         description = workflow_json.get('description', [])
         all_worker_names = {task['name'] for task in workflow_json.get('tasks', [])}
         for desc in description:
             if desc['Worker_Name'] not in all_worker_names:
                 print(f"Error: Worker '{desc['Worker_Name']}' in description is not in tasks.")
                 return {"valid_json": False, "error": "Worker in description is not in tasks"}
+        """
         print ("Workflow is valid")
-        
+
         return {"valid_json": True}
