@@ -9,9 +9,10 @@ from pathlib import Path
 from omagent_core.utils.registry import registry
 from omagent_core.clients.devices.cli import DefaultClient
 
-from omagent_core.engine.workflow.task.set_variable_task import SetVariableTask
+#from omagent_core.engine.workflow.task.set_variable_task import SetVariableTask
 from omagent_core.utils.logger import logging
-from omagent_core.engine.workflow.task.do_while_task import DoWhileTask
+#from omagent_core.engine.workflow.task.do_while_task import DoWhileTask
+#from omagent_core.clients.devices.webpage.client import WebpageClient
 
 from agent.InputInterface.TestInput import TestInput
 from test_workflow import OmAgent4Agent
@@ -47,5 +48,6 @@ workflow.register(True)
 # Initialize and start CLI client with workflow configuration
 config_path = CURRENT_PATH.joinpath('configs')
 cli_client = DefaultClient(interactor=workflow, config_path=config_path, workers=[TestInput()])
+#cli_client = WebpageClient(interactor=workflow, config_path=config_path, workers=[TestInput()])
 cli_client.start_interactor()
 

@@ -32,7 +32,7 @@ class ConfigManager(BaseWorker):
             config_path = os.path.join(worker_folder, worker["worker_name"].lower() + ".yaml")
             
             with open(config_path, 'w') as f:
-                f.write("name:"+worker["worker_name"]+"\n")
+                f.write("name: "+worker["worker_name"]+"\n")
                 if "llm:" in worker["code"] and "image" in worker["code"]:
                     f.write("llm: ${sub|vlm}\n")
                 if "llm:" in worker["code"] and not "image" in worker["code"]:

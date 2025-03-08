@@ -16,15 +16,14 @@ CURRENT_PATH = Path(__file__).parents[0]
 
 @registry.register_worker()
 class ExecuteAgent(BaseWorker):
-    def _run(self, *args, **kwargs):
+    def _run(self, folder_path, example_inputs,*args, **kwargs):
         try:
             mode = os.getenv("OMAGENT_MODE")            
             os.environ["OMAGENT_MODE"] = "lite"            
             from omagent_core.engine.workflow.conductor_workflow import ConductorWorkflow
             from omagent_core.clients.devices.programmatic import ProgrammaticClient
             logging.init_logger("omagent", "omagent", level="INFO")
-            folder_path = self.inputs["folder_path"]
-            example_inputs = self.inputs["example_inputs"]
+            
             if type(example_inputs) == str:
                 example_inputs = json.loads(example_inputs)
 

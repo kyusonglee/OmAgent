@@ -31,6 +31,7 @@ class WorkerManager(BaseLLMBackend, BaseWorker):
     def _run(self, *args, **kwargs):    
         print ("CURRENT_PATH",CURRENT_PATH)
         print ("ROOT_PATH",ROOT_PATH)  
+        
         workflow_json = json.loads(self.stm(self.workflow_instance_id)["workflow_json"])
         folder_path = self.stm(self.workflow_instance_id)["folder_path"]
         workflow_file_name = f"{workflow_json['name']}_workflow.json"
