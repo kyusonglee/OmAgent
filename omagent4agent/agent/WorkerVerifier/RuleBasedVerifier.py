@@ -40,6 +40,11 @@ class RuleBasedVerifier(BaseLLMBackend, BaseWorker):
         results = {}
         for i, worker in enumerate(generated_workers["workers"]):
             code = worker["code"]
+            if "kwargs.get(" in code:
+                if not worker_name in results:
+                    results[worker_name] = []
+                results[worker_name].append({"is_correct": False, "error_message": "The worker has kwargs.get. This is not allowed. Please use input parameters instead."})
+
             worker_name = worker["worker_name"]
             worker_file_path = worker["worker_file_path"]  
             output = self.verify_input_parameters(code, workflow_json, worker_name)            

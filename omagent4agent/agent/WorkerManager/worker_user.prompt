@@ -320,5 +320,7 @@ if an value of inputParameters is "${object_detection.output.mouse_detected}", i
 in object_detection worker, the function of _run return should be like below:
 return {"mouse_detected": ...}
 
+Do not use kwargs.get() to get input parameters in the worker.
+
 Previous codes (Please use the previous codes to implement the worker like how to set and use stm and input and output. If there is no previous codes, please implement the worker from scratch.. ):
 {{previous_codes}}
