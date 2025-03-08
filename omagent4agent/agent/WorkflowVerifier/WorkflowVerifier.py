@@ -11,14 +11,16 @@ class WorkflowVerifier(BaseWorker):
         try:
             workflow_json = json.loads(workflow_json)
         except:
-            print (workflow_json)
-            return {"valid_json": False, "error": "Invalid JSON"}
+            self.callback.error(message="Invalid JSON:"+str(workflow_json), agent_id=self.workflow_instance_id, progress="WorkflowVerifier")
+            self.stm(self.workflow_instance_id)["workflow_error_msg"] = "Invalid JSON. Json parsing error"
+            return {"switch_case_value": False, "error": "Invalid JSON"}
 
         for task in workflow_json.get('tasks', []):
             if task['type'] == 'SWITCH':
                 if not task.get('inputParameters'):
-                    print(f"Error: SWITCH task '{task['name']}' has empty inputParameters.")
-                    return {"valid_json": False, "error": "SWITCH task has empty inputParameters"}
+                    self.callback.info(message=f"Error: SWITCH task '{task['name']}' has empty inputParameters.", agent_id=self.workflow_instance_id, progress="WorkflowVerifier")
+                    self.stm(self.workflow_instance_id)["workflow_error_msg"] = "SWITCH task has empty inputParameters"
+                    return {"switch_case_value": False, "error": "SWITCH task has empty inputParameters"}
 
         # Check for DO_WHILE task type
         for task in workflow_json.get('tasks', []):
@@ -26,23 +28,27 @@ class WorkflowVerifier(BaseWorker):
                 loop_condition = task.get('loopCondition')
                 loop_over = task.get('loopOver', [])
                 if not loop_condition or not loop_over:
-                    print(f"Error: DO_WHILE task '{task['name']}' is missing loopCondition or loopOver.")
-                    return {"valid_json": False, "error": "DO_WHILE task is missing loopCondition or loopOver"}
+                    self.callback.info(message=f"Error: DO_WHILE task '{task['name']}' is missing loopCondition or loopOver.", agent_id=self.workflow_instance_id, progress="WorkflowVerifier")
+                    self.stm(self.workflow_instance_id)["workflow_error_msg"] = "DO_WHILE task is missing loopCondition or loopOver"
+                    return {"switch_case_value": False, "error": "DO_WHILE task is missing loopCondition or loopOver"}
                 # Extract taskReferenceName from loopCondition
                 task_ref_name = loop_condition.split('$.')[1].split('[')[0]
                 if not any(t['taskReferenceName'] == task_ref_name for t in loop_over):
-                    print(f"Error: taskReferenceName '{task_ref_name}' in loopCondition is not in loopOver for task '{task['name']}'.")
-                    return {"valid_json": False, "error": "taskReferenceName in loopCondition is not in loopOver"}
+                    self.callback.info(message=f"Error: taskReferenceName '{task_ref_name}' in loopCondition is not in loopOver for task '{task['name']}'.", agent_id=self.workflow_instance_id, progress="WorkflowVerifier")
+                    self.stm(self.workflow_instance_id)["workflow_error_msg"] = "taskReferenceName in loopCondition is not in loopOver"
+                    return {"switch_case_value": False, "error": "taskReferenceName in loopCondition is not in loopOver"}
 
-        # Check for description inclusion
-        """
-        description = workflow_json.get('description', [])
-        all_worker_names = {task['name'] for task in workflow_json.get('tasks', [])}
-        for desc in description:
-            if desc['Worker_Name'] not in all_worker_names:
-                print(f"Error: Worker '{desc['Worker_Name']}' in description is not in tasks.")
-                return {"valid_json": False, "error": "Worker in description is not in tasks"}
-        """
-        print ("Workflow is valid")
+        first_task = workflow_json["tasks"][0]        
+        if first_task["inputParameters"] == {}:
+            self.callback.info(message=f"Error: First task '{first_task['name']}' has empty inputParameters.", agent_id=self.workflow_instance_id, progress="WorkflowVerifier")
+            self.stm(self.workflow_instance_id)["workflow_error_msg"] = "First task has empty inputParameters"
+            return {"switch_case_value": False, "error": "First task has empty inputParameters"}
 
-        return {"valid_json": True}
+        for v in first_task["inputParameters"].values():
+            if not "${workflow.input." in v:
+                self.callback.info(message=f"Error: The input parameters are not correct. {v} is not in the workflow.input.", agent_id=self.workflow_instance_id, progress="WorkflowVerifier")
+                self.stm(self.workflow_instance_id)["workflow_error_msg"] = "The input parameters are not correct. " + v + " is not in the workflow.input."
+                return {"switch_case_value": False, "error": "The input parameters are not correct. " + v + " is not in the workflow.input."}
+        self.callback.info(message="Workflow is valid", agent_id=self.workflow_instance_id, progress="WorkflowVerifier")
+        self.stm(self.workflow_instance_id)["workflow_error_msg"] = "Workflow is valid"
+        return {"switch_case_value": True}

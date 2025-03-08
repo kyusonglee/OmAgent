@@ -16,16 +16,21 @@ class ConfigManager(BaseWorker):
         generated_workers = self.stm(self.workflow_instance_id)["generated_workers"]
         folder_path = self.stm(self.workflow_instance_id)["folder_path"]
         name = generated_workers["name"]
-        source = os.path.join(CURRENT_PATH, "configs","llms")
+        source = os.path.join("configs","llms")
         target = os.path.join(folder_path, "configs","llms" )
         shutil.copytree(source, target)
 
-        source = os.path.join(CURRENT_PATH, "configs","tools")
+        source = os.path.join("configs","tools")
         target = os.path.join(folder_path, "configs","tools" )
         shutil.copytree(source, target) 
-    
+
+
         for worker in generated_workers["workers"]:
-            config_path = os.path.join(folder_path, "configs","workers", worker["worker_name"].lower()+".yaml")
+            worker_folder = os.path.join(folder_path, "configs", "workers")
+            if not os.path.exists(worker_folder):
+                os.makedirs(worker_folder)
+            config_path = os.path.join(worker_folder, worker["worker_name"].lower() + ".yaml")
+            
             with open(config_path, 'w') as f:
                 f.write("name:"+worker["worker_name"]+"\n")
                 if "llm:" in worker["code"] and "image" in worker["code"]:

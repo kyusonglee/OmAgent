@@ -270,6 +270,14 @@ The worker name will be used as the name of class name in the codes later. Pleas
 Now, generate the workers and workflow for the given task. Only output the JSON. description must be in the output for coding agents.
 The example input will be given as the following: {{input}} 
 
+First task must include the inputParameters like below:
+```json
+{
+    "inputParameters": {
+        "image_path": "${workflow.input.{{input_keys}}}"
+    }
+}
+```
 
 
 Here is an complete simple example of using short term memory to VQA including worker and workflow json:

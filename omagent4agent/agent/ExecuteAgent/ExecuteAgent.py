@@ -17,8 +17,9 @@ CURRENT_PATH = Path(__file__).parents[0]
 @registry.register_worker()
 class ExecuteAgent(BaseWorker):
     def _run(self, *args, **kwargs):
-        try:            
-            os.environ["OMAGENT_MODE"] = "lite"
+        try:
+            mode = os.getenv("OMAGENT_MODE")            
+            os.environ["OMAGENT_MODE"] = "lite"            
             from omagent_core.engine.workflow.conductor_workflow import ConductorWorkflow
             from omagent_core.clients.devices.programmatic import ProgrammaticClient
             logging.init_logger("omagent", "omagent", level="INFO")
@@ -46,7 +47,9 @@ class ExecuteAgent(BaseWorker):
             )
             output = client.start_processor_with_input(example_inputs)  
             print (output)            
+            os.environ["OMAGENT_MODE"] = mode
             return {"output": output, "error": None, "traceback": None}
         except Exception as e:
+            os.environ["OMAGENT_MODE"] = mode
             logging.error(f"Error while executing agent: {e}")
             return {"output": None, "error": str(e), "traceback": traceback.format_exc()}

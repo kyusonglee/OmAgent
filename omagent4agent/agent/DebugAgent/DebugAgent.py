@@ -27,13 +27,13 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
     )
     llm: BaseLLM
     def _run(self, *args, **kwargs):        
-        initial_description = self.stm(self.workflow_instance_id)["initial_description"]
+        error_message = self.stm(self.workflow_instance_id)["error_message"]
+        workflow = self.stm(self.workflow_instance_id)["workflow"]
+        code = self.stm(self.workflow_instance_id)["code"]
         example_input = self.stm(self.workflow_instance_id)["example_input"]
-        plan = self.stm(self.workflow_instance_id)["plan"]       
        
-        workflow_json = self.simple_infer(content=initial_description, plan=plan, input=example_input)["choices"][0]["message"].get("content")
-        #print (type(workflow_json))
-        #print (pprint(json.loads(workflow_json)))
-        self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json
-        return workflow_json
+        llm_response = self.simple_infer(error_message=error_message, workflow=workflow, code=code, input=example_input)["choices"][0]["message"].get("content")
+        
+        
+        return llm_response
 

@@ -29,11 +29,15 @@ class WorkflowManager(BaseLLMBackend, BaseWorker):
     def _run(self, *args, **kwargs):        
         initial_description = self.stm(self.workflow_instance_id)["initial_description"]
         example_input = self.stm(self.workflow_instance_id)["example_input"]
+        if type(example_input) == str:
+            print (example_input)
+            example_input = json.loads(example_input)
+
+        keys = example_input.keys()
         plan = self.stm(self.workflow_instance_id)["plan"]       
        
-        workflow_json = self.simple_infer(content=initial_description, plan=plan, input=example_input)["choices"][0]["message"].get("content")
-        #print (type(workflow_json))
-        #print (pprint(json.loads(workflow_json)))
+        workflow_json = self.simple_infer(content=initial_description, plan=plan, input=example_input, input_keys=keys)["choices"][0]["message"].get("content")
+
         self.callback.info(self.workflow_instance_id, progress="WorkflowManager", message=workflow_json)
         self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json
         return workflow_json

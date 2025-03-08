@@ -103,9 +103,10 @@ class LocalWorkflowExecutor:
                         break
                     
         elif task_type == 'SWITCH':
+            print (self.evaluate_input_parameters(task))
             case_value = self.evaluate_input_parameters(task)['switchCaseValue']
             
-            if not isinstance(case_value, str):
+            if not type(case_value) == str:
                 case_value = str(case_value).lower()
             if case_value in task['decision_cases']:
                 print ("case_value in task['decision_cases']")

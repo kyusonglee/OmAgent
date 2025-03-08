@@ -10,6 +10,8 @@ from omagent_core.engine.workflow.task.simple_task import simple_task
 from omagent_core.engine.workflow.task.switch_task import SwitchTask
 from agent.ConfigManager.ConfigManager import ConfigManager
 from agent.ExecuteAgent.ExecuteAgent import ExecuteAgent
+from agent.WorkerVerifier.RuleBasedVerifier import RuleBasedVerifier
+from agent.WorkflowVerifier.WorkflowDebug import WorkflowDebug
 
 
 class OmAgent4Agent(ConductorWorkflow): 
@@ -38,24 +40,39 @@ class OmAgent4Agent(ConductorWorkflow):
             task_reference_name="workflow_verifier"
         )
 
-        self.workflow_loop_task = DoWhileTask(
-            task_ref_name="workflow_loop",
-            tasks=[self.workflow_manager_task, self.workflow_verifier_task],
-            termination_condition='if ($.workflow_verifier["valid_json"] == true){false;} else {true;} ',
-        )        
-
-        self.worker_manager_task = simple_task(
-            task_def_name=WorkerManager,
-            task_reference_name="worker_manager"
-        )
         self.worker_verifier_task = simple_task(
             task_def_name=WorkerVerifier,
             task_reference_name="worker_verifier"
         )
 
+        self.workflow_debug_task = simple_task(
+            task_def_name=WorkflowDebug,
+            task_reference_name="workflow_debug",
+        )
+
+        self.workflow_loop_task = DoWhileTask(
+            task_ref_name="workflow_loop",
+            tasks=[self.workflow_debug_task, self.workflow_verifier_task],
+            termination_condition='if ($.workflow_verifier["switch_case_value"] == true){false;} else {true;} ',
+        )
+
+        self.workflow_verifier_switch_task = SwitchTask(
+            task_ref_name="workflow_verifier_switch_task",
+            case_expression=self.workflow_verifier_task.output("switch_case_value"),
+        )
+
+        self.workflow_verifier_switch_task.switch_case("false", self.workflow_loop_task)
+
+
+   
         self.config_manager_task = simple_task(
             task_def_name=ConfigManager,
             task_reference_name="config_manager"
+        )
+
+        self.worker_manager_task = simple_task(
+            task_def_name=WorkerManager,
+            task_reference_name="worker_manager"
         )
 
         self.execute_agent_task = simple_task(
@@ -63,6 +80,12 @@ class OmAgent4Agent(ConductorWorkflow):
             task_reference_name="execute_agent",
             inputs={"folder_path": None, "example_inputs": None}
         )
+        self.rulebase_worker_verifier_task = simple_task(
+            task_def_name=RuleBasedVerifier,
+            task_reference_name="rulebase_worker_verifier",
+            inputs={"folder_path": None, "example_inputs": None}
+        )
+        
         """
         self.switch_task = SwitchTask(
             task_ref_name="switch_task",
@@ -76,6 +99,6 @@ class OmAgent4Agent(ConductorWorkflow):
     def _configure_workflow(self):
         # configure workflow execution flow
         #self >> self.planner_task >> self.workflow_manager_task >> self.worker_manager_task >> self.worker_verifier_task
-        self >> self.planner_task >> self.workflow_loop_task >> self.worker_manager_task >> self.config_manager_task >> self.execute_agent_task
+        self >> self.planner_task >> self.workflow_manager_task >> self.workflow_verifier_task >> self.workflow_verifier_switch_task  >> self.worker_manager_task >> self.config_manager_task >> self.rulebase_worker_verifier_task
         #self.dnc_structure = self.task_exit_monitor_task.output("dnc_structure")
         #self.last_output = self.task_exit_monitor_task.output("last_output")
