@@ -2,7 +2,15 @@ from pathlib import Path
 from omagent_core.engine.worker.base import BaseWorker
 from omagent_core.utils.registry import registry
 import re
-import json
+import json 
+from typing import List
+from omagent_core.engine.worker.base import BaseWorker
+from omagent_core.models.llms.base import BaseLLMBackend, BaseLLM
+from omagent_core.models.llms.prompt import PromptTemplate
+from pydantic import Field
+import os 
+
+
 CURRENT_PATH = root_path = Path(__file__).parents[0]
 
 def get_returns(code):
@@ -17,7 +25,15 @@ def get_returns(code):
 
 
 @registry.register_worker()
-class RuleBasedVerifier(BaseWorker):  
+class RuleBasedVerifier(BaseLLMBackend, BaseWorker):  
+    prompts: List[PromptTemplate] = Field(
+        default=[
+            PromptTemplate.from_file(CURRENT_PATH.joinpath("worker_verifier_system.prompt"), role="system"),
+            PromptTemplate.from_file(CURRENT_PATH.joinpath("rule_based_verifier_user.prompt"), role="user"),   
+        ]
+    )
+    llm: BaseLLM
+
     def _run(self, *args, **kwargs):                
         generated_workers = self.stm(self.workflow_instance_id)["generated_workers"]       
         workflow_json = self.stm(self.workflow_instance_id)["workflow_json"]
@@ -47,10 +63,24 @@ class RuleBasedVerifier(BaseWorker):
         
 
         results = self.verify_output_parameters(generated_workers["workers"], workflow_json, results)
-        
-        self.stm(self.workflow_instance_id)["code_correctness"] = results
-        print (results)
+        folder = self.stm(self.workflow_instance_id)["folder_path"]
+        for w in generated_workers["workers"]:                    
+            if w["worker_name"] in results:
+                error_messages = " ".join([x["error_message"] for x in results[w["worker_name"]]])
+                output = self.simple_infer(code=w["code"], workflow_json=workflow_json, error_messages=error_messages)["choices"][0]["message"].get("content")
+                w["code"] = self.parser(output)
+                self.callback.info(agent_id=self.workflow_instance_id, progress="RuleBasedVerifier", message=f"The code is corrected. {w['worker_name']}")
+                self.callback.info(agent_id=self.workflow_instance_id, progress="RuleBasedVerifier", message=w["code"])
 
+                task_name = w["worker_name"]
+                code_path = os.path.join(folder, "agent", task_name, f"{task_name}.py")
+                with open(code_path, "w") as f:
+                    f.write(w["code"])
+          
+    def parser(self, output):
+        if "```python" in output:
+            output = output.split("```python")[1].split("```")[0]
+        return output
                 
     def verify_input_parameters(self, code, workflow_json, worker_name):   
         class_name = worker_name
@@ -117,8 +147,9 @@ class RuleBasedVerifier(BaseWorker):
             try:
                 workers_codes[Dic[w["worker_name"]]] = w["code"]
             except:
-                print ("worker_name:",w["worker_name"])
-                print ("Dic:",Dic)
+                pass
+                #print ("worker_name:",w["worker_name"])
+                #print ("Dic:",Dic)
 
         #print (workers_codes)
         #print (workers_names)
@@ -135,7 +166,7 @@ class RuleBasedVerifier(BaseWorker):
                     if ref_name in results:
                         results[workers_names[ref_name]] = []
                     results[workers_names[ref_name]].append({"is_correct": False, "error_message": f"The output parameter is not in the return statement."})
-        print (results)
+              
         return results
 
     def parser(self, output):
@@ -150,13 +181,9 @@ class RuleBasedVerifier(BaseWorker):
             if "@registry.register_worker()" in line:
                 break
             import_code_only.append(line)
-        try:
-            print ("import_code_only")
-            print ("\n".join(import_code_only))
+        try:            
             exec("\n".join(import_code_only))
         except ImportError as e:
-            print ({"is_correct": False, "error_message": str(e)})
             return {"is_correct": False, "error_message": str(e)}
-        print ({"is_correct": True, "error_message": ""})
         return {"is_correct": True, "error_message": ""}
     

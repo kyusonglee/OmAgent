@@ -43,7 +43,6 @@ class SwitchTask(TaskInterface):
         return self
 
 
-
     def to_workflow_task(self) -> WorkflowTask:
         workflow = super().to_workflow_task()
         if self._use_javascript:

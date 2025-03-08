@@ -1,1 +1,2 @@
 name: RuleBasedVerifier
+llm: ${sub| llm_text}
