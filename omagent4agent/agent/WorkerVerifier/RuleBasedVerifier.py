@@ -95,8 +95,11 @@ class RuleBasedVerifier(BaseLLMBackend, BaseWorker):
         for task in json.loads(workflow_json)["tasks"]:            
             if task["type"] == "SWITCH":
                 for case in task["decisionCases"]:
-                    for c in case:
-                        tasks[c["name"]] = c
+                    if type(case) == list:
+                        for c in case:
+                            tasks[c["name"]] = c
+                    else:
+                        tasks[case["name"]] = case
             elif task["type"] == "DO_WHILE":
                 for c in task["loopOver"]:
                     tasks[c["name"]] = c  
@@ -168,12 +171,6 @@ class RuleBasedVerifier(BaseLLMBackend, BaseWorker):
                     results[workers_names[ref_name]].append({"is_correct": False, "error_message": f"The output parameter is not in the return statement."})
               
         return results
-
-    def parser(self, output):
-        if "```json" in output:
-            output = output.split("```json")[1].split("```")[0]
-        output = json.loads(output)
-        return output
 
     def test_import(self, code):
         import_code_only = []
