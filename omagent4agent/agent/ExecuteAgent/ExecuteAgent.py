@@ -47,8 +47,8 @@ class ExecuteAgent(BaseWorker):
             output = client.start_processor_with_input(example_inputs)  
             print (output)            
             os.environ["OMAGENT_MODE"] = mode
-            return {"output": output, "error": None, "traceback": None}
+            return {"output": output, "error": None, "traceback": None, "has_no_error": True}
         except Exception as e:
             os.environ["OMAGENT_MODE"] = mode
             logging.error(f"Error while executing agent: {e}")
-            return {"output": None, "error": str(e), "traceback": traceback.format_exc()}
+            return {"output": None, "error": str(e), "traceback": traceback.format_exc(), "has_no_error": False}
