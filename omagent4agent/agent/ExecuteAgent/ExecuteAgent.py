@@ -18,7 +18,12 @@ CURRENT_PATH = Path(__file__).parents[0]
 class ExecuteAgent(BaseWorker):
     def _run(self, folder_path, example_inputs,*args, **kwargs):
             mode = os.getenv("OMAGENT_MODE")            
-            os.environ["OMAGENT_MODE"] = "lite"            
+            os.environ["OMAGENT_MODE"] = "lite"  
+            if folder_path == None:
+                folder_path = self.stm(self.workflow_instance_id)["folder_path"]
+            if example_inputs == None:
+                example_inputs = self.stm(self.workflow_instance_id)["example_input"]
+
             from omagent_core.engine.workflow.conductor_workflow import ConductorWorkflow
             from omagent_core.clients.devices.programmatic import ProgrammaticClient
             logging.init_logger("omagent", "omagent", level="INFO")
@@ -38,18 +43,17 @@ class ExecuteAgent(BaseWorker):
             with open(workflow_path) as f:
                 workflow_json = json.load(f)
 
-            workflow = ConductorWorkflow(name=workflow_json["name"])
+            workflow = ConductorWorkflow(name=workflow_json["name"], lite_version=True)
             workflow.load(workflow_path)
             client = ProgrammaticClient(
                 processor=workflow,
                 config_path="/".join(workflow_path.split("/")[:-1])+"/configs",
             )
-            self.stm(self.workflow_instance_id)["example_inputs"] = example_inputs
+            self.stm(self.workflow_instance_id)["example_input"] = example_inputs
 
             output = client.start_processor_with_input(example_inputs)
-             
-            if "error" in output and not output["error"] == None:
-                print ("11111", output) 
+            print ("output",output)
+            if "error" in output:
                 self.stm(self.workflow_instance_id)["error_message"] = output["error"]
                 self.stm(self.workflow_instance_id)["traceback"] = output["traceback"]
                 self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json 
@@ -60,7 +64,6 @@ class ExecuteAgent(BaseWorker):
                 self.stm(self.workflow_instance_id)["error_message"] = None
                 self.stm(self.workflow_instance_id)["traceback"] = None
                 self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json            
-                print ("22222", {"has_error": False})
                 os.environ["OMAGENT_MODE"] = mode
                 return {"outputs": output, "error": None, "traceback": None, "has_error": False}
         

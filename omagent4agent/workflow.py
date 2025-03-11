@@ -12,6 +12,7 @@ from agent.ConfigManager.ConfigManager import ConfigManager
 from agent.ExecuteAgent.ExecuteAgent import ExecuteAgent
 from agent.WorkerVerifier.RuleBasedVerifier import RuleBasedVerifier
 from agent.WorkflowVerifier.WorkflowDebug import WorkflowDebug
+from agent.DebugAgent.DebugAgent import DebugAgent
 
 
 class OmAgent4Agent(ConductorWorkflow): 
@@ -89,13 +90,37 @@ class OmAgent4Agent(ConductorWorkflow):
             inputs={"folder_path": None, "example_inputs": None}
         )
 
-        
-    
+        self.debug_task = simple_task(
+            task_def_name=DebugAgent,
+            task_reference_name="debug_task",
+        )
+
+        self.execute_agent_task2 = simple_task(
+            task_def_name=ExecuteAgent,
+            task_reference_name="execute_agent2",
+            inputs={"folder_path": None, "example_inputs": None}
+        )
+
+        self.switch_task_for_debug = SwitchTask(
+            task_ref_name="switch_task_for_debug",
+            case_expression=self.execute_agent_task.output("has_error"),
+        )
+
+        self.workflow_loop_task = DoWhileTask(
+            task_ref_name="workflow_loop_for_debug",
+            tasks=[self.debug_task, self.execute_agent_task2],
+            termination_condition="if ($.debug_task['finished'] == true){false;} else {true;} ",
+            #termination_condition="if ($.execute_agent_task2['has_error'] == true){false;} else {true;} ",
+        )
+
+
+        self.switch_task_for_debug.switch_case("true", self.workflow_loop_task)   
+
 
 
     def _configure_workflow(self):
         # configure workflow execution flow
         #self >> self.planner_task >> self.workflow_manager_task >> self.worker_manager_task >> self.worker_verifier_task
-        self >> self.planner_task >> self.workflow_manager_task >> self.workflow_verifier_task >> self.workflow_verifier_switch_task  >> self.worker_manager_task >> self.config_manager_task >> self.rulebase_worker_verifier_task
+        self >> self.planner_task >> self.workflow_manager_task >> self.workflow_verifier_task >> self.workflow_verifier_switch_task  >> self.worker_manager_task >> self.config_manager_task >> self.rulebase_worker_verifier_task >> self.execute_agent_task >> self.switch_task_for_debug
         #self.dnc_structure = self.task_exit_monitor_task.output("dnc_structure")
         #self.last_output = self.task_exit_monitor_task.output("last_output")

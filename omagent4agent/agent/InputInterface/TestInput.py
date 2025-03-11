@@ -42,5 +42,5 @@ class TestInput(BaseWorker):
 
         print ("example_input",example_input)
         self.stm(self.workflow_instance_id)["folder_path"] = "generated_agents/"+folder_path
-        self.stm(self.workflow_instance_id)["example_inputs"] = example_input      
+        self.stm(self.workflow_instance_id)["example_input"] = example_input      
         return {"folder_path": "generated_agents/"+folder_path, "example_inputs": example_input}

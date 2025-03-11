@@ -57,7 +57,7 @@ class WorkerManager(BaseLLMBackend, BaseWorker):
                 f.write(code)
             print ("worker_file_path",worker_file_path)
             print ("code",code)
-            self.callback.info(self.workflow_instance_id, progress="WorkerManager", message=code)
+            self.callback.info(self.workflow_instance_id, progress=worker_file_path, message=code)
             generated_workers["workers"].append({"worker_name": worker['Worker_Name'], "worker_file_path": worker_file_path, "code": code })
         
         agents_dir = os.path.join(folder_path, "agent")

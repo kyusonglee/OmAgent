@@ -31,7 +31,7 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
         error_message = self.stm(self.workflow_instance_id)["error_message"]
         traceback = self.stm(self.workflow_instance_id)["traceback"]
         workflow = self.stm(self.workflow_instance_id)["workflow_json"]
-        example_input = self.stm(self.workflow_instance_id)["example_inputs"]
+        example_input = self.stm(self.workflow_instance_id)["example_input"]
         print ("example_input: ",example_input)
         folder_path = self.stm(self.workflow_instance_id)["folder_path"]
         name = workflow["name"]
@@ -53,12 +53,18 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
             new_codes = self.parse(new_codes)
             for new_code in new_codes:
                 file_path = new_code["file_path"]
-                with open(file_path, "w") as f:       
-                    old_code = dict_code[file_path]         
-                    diff_code = self.diff(old_code, new_code["code"])                
-                    self.callback.info(agent_id=self.workflow_instance_id, progress="DEBUGING: "+file_path, message=diff_code)
-                    f.write(new_code["code"])
-            self.clear_modules(folder_path)
+                old_code = dict_code[file_path]         
+                diff_code = self.diff(old_code, new_code["code"])  
+                self.callback.info(agent_id=self.workflow_instance_id, progress="Suggestion: "+file_path, message=diff_code)
+                input = self.input.read_input(workflow_instance_id=self.workflow_instance_id, input_prompt="Do you want to fix the error? (yes/no)")
+                content = input['messages'][-1]['content']
+                for content_item in content:
+                    if content_item['type'] == 'text':
+                        fix_error = content_item['data']
+                if fix_error == "yes":
+                    with open(file_path, "w") as f:                                                             
+                        f.write(new_code["code"])
+                    self.clear_modules(folder_path)
             return {"finished": False}
         else:
             return {"finished": True}
