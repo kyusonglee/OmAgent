@@ -76,7 +76,15 @@ class LocalWorkflowExecutor:
                 else:
                     checked_inputs[signature_param_key] = inputs[signature_param_key]
             # Execute task
-            result = worker._run(**checked_inputs)
+            try:
+                result = worker._run(**checked_inputs)
+            except Exception as e:
+                worker.callback.error(
+                    worker.workflow_instance_id, 
+                    error_code=500,
+                    error_info=f"ERROR:The '{task_name}' task execution failed."
+                )
+                raise e
             # Store output
             task_ref_key = 'taskReferenceName' if 'taskReferenceName' in task else 'task_reference_name'
 

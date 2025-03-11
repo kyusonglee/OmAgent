@@ -59,6 +59,16 @@ class WebpageClient:
                 word-wrap: break-word;
                 font-family: inherit;
             }
+
+            .error-message {
+                background-color: #f8d7da;
+                color: #721c24;
+                margin: 0;
+                padding: 2px 4px;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                font-family: inherit;
+            }
             
             /* Remove the background and border of the message box */
             .message-wrap {
@@ -70,6 +80,13 @@ class WebpageClient:
             
             /* Remove the bubble style of the running message */
             .message:has(.running-message) {
+                background: none !important;
+                border: none !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+            }
+
+            .message:has(.error-message) {
                 background: none !important;
                 border: none !important;
                 padding: 0 !important;
@@ -272,29 +289,16 @@ class WebpageClient:
                     if payload_data["content_status"] == ContentStatus.INCOMPLETE.value:
                         incomplete_flag = True
                     message_item = payload_data["message"]
-                    if message_item["type"] == MessageType.IMAGE_URL.value:
-                        history.append(
-                            {
-                                "role": "assistant",
-                                "content": {"path": message_item["content"]},
-                            }
-                        )
-                    else:
-                        if incomplete_flag:
-                            self._incomplete_message = (
-                                self._incomplete_message + message_item["content"]
+                    if payload_data["code"] == 0:
+                        if message_item["type"] == MessageType.IMAGE_URL.value:
+                            history.append(
+                                {
+                                    "role": "assistant",
+                                    "content": {"path": message_item["content"]},
+                                }
                             )
-                            if history and history[-1]["role"] == "assistant":
-                                history[-1]["content"] = self._incomplete_message
-                            else:
-                                history.append(
-                                    {
-                                        "role": "assistant",
-                                        "content": self._incomplete_message,
-                                    }
-                                )
                         else:
-                            if self._incomplete_message != "":
+                            if incomplete_flag:
                                 self._incomplete_message = (
                                     self._incomplete_message + message_item["content"]
                                 )
@@ -307,15 +311,38 @@ class WebpageClient:
                                             "content": self._incomplete_message,
                                         }
                                     )
-                                self._incomplete_message = ""
                             else:
-                                history.append(
-                                    {
-                                        "role": "assistant",
-                                        "content": message_item["content"],
-                                    }
-                                )
-
+                                if self._incomplete_message != "":
+                                    self._incomplete_message = (
+                                        self._incomplete_message + message_item["content"]
+                                    )
+                                    if history and history[-1]["role"] == "assistant":
+                                        history[-1]["content"] = self._incomplete_message
+                                    else:
+                                        history.append(
+                                            {
+                                                "role": "assistant",
+                                                "content": self._incomplete_message,
+                                            }
+                                        )
+                                    self._incomplete_message = ""
+                                else:
+                                    history.append(
+                                        {
+                                            "role": "assistant",
+                                            "content": message_item["content"],
+                                        }
+                                    )
+                    else:
+                        formatted_message = (
+                            f'<pre class="error-message">{payload_data["error_info"]}</pre>'
+                        )
+                        history.append(
+                                        {
+                                            "role": "assistant",
+                                            "content": formatted_message,
+                                        }
+                                    )
                     yield history
 
                     container.get_connector("redis_stream_client")._client.xack(
