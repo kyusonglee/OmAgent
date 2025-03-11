@@ -94,7 +94,6 @@ class LocalWorkflowExecutor:
                 
                 if 'loopCondition' in task or "loop_condition" in task:
                     should_continue = self.evaluate_loop_condition(task['loopCondition' if 'loopCondition' in task else "loop_condition"])            
-                    
                     if not should_continue:
                         break
                 else:

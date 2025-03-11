@@ -67,8 +67,6 @@ class OmAgent4Agent(ConductorWorkflow):
         )
 
         self.workflow_verifier_switch_task.switch_case("false", self.workflow_loop_task)
-
-
    
         self.config_manager_task = simple_task(
             task_def_name=ConfigManager,
@@ -90,15 +88,9 @@ class OmAgent4Agent(ConductorWorkflow):
             task_reference_name="rulebase_worker_verifier",
             inputs={"folder_path": None, "example_inputs": None}
         )
+
         
-        """
-        self.switch_task = SwitchTask(
-            task_ref_name="switch_task",
-            case_expression=self.conqueror_task.output("switch_case_value"),
-        )
-        self.switch_task.switch_case("complex", self.divider_task)
-        self.switch_task.switch_case("failed", self.rescue_task)
-        """
+    
 
 
     def _configure_workflow(self):

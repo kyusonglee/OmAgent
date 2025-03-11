@@ -44,11 +44,20 @@ class ExecuteAgent(BaseWorker):
                 processor=workflow,
                 config_path="/".join(workflow_path.split("/")[:-1])+"/configs",
             )
+            self.stm(self.workflow_instance_id)["example_inputs"] = example_inputs
+
             output = client.start_processor_with_input(example_inputs)  
-            print (output)            
             os.environ["OMAGENT_MODE"] = mode
-            return {"output": output, "error": None, "traceback": None, "has_no_error": True}
+            self.stm(self.workflow_instance_id)["error_message"] = None
+            self.stm(self.workflow_instance_id)["traceback"] = None
+            self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json            
+            
+            return {"output": output, "error": None, "traceback": None, "has_error": False}
         except Exception as e:
             os.environ["OMAGENT_MODE"] = mode
             logging.error(f"Error while executing agent: {e}")
-            return {"output": None, "error": str(e), "traceback": traceback.format_exc(), "has_no_error": False}
+            self.stm(self.workflow_instance_id)["error_message"] = str(e)
+            self.stm(self.workflow_instance_id)["traceback"] = traceback.format_exc()
+            self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json
+
+            return {"output": None, "error": str(e), "traceback": traceback.format_exc(), "has_error": True}    
