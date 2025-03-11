@@ -17,7 +17,6 @@ CURRENT_PATH = Path(__file__).parents[0]
 @registry.register_worker()
 class ExecuteAgent(BaseWorker):
     def _run(self, folder_path, example_inputs,*args, **kwargs):
-        try:
             mode = os.getenv("OMAGENT_MODE")            
             os.environ["OMAGENT_MODE"] = "lite"            
             from omagent_core.engine.workflow.conductor_workflow import ConductorWorkflow
@@ -33,6 +32,7 @@ class ExecuteAgent(BaseWorker):
             if target_folder not in sys.path:
                 sys.path.insert(0, target_folder)
             print(f"Added {target_folder} to sys.path")
+            #self.clear_modules(folder_path)
             registry.import_module(os.path.join(target_folder, "agent"))
 
             with open(workflow_path) as f:
@@ -46,18 +46,33 @@ class ExecuteAgent(BaseWorker):
             )
             self.stm(self.workflow_instance_id)["example_inputs"] = example_inputs
 
-            output = client.start_processor_with_input(example_inputs)  
-            os.environ["OMAGENT_MODE"] = mode
-            self.stm(self.workflow_instance_id)["error_message"] = None
-            self.stm(self.workflow_instance_id)["traceback"] = None
-            self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json            
-            
-            return {"output": output, "error": None, "traceback": None, "has_error": False}
-        except Exception as e:
-            os.environ["OMAGENT_MODE"] = mode
-            logging.error(f"Error while executing agent: {e}")
-            self.stm(self.workflow_instance_id)["error_message"] = str(e)
-            self.stm(self.workflow_instance_id)["traceback"] = traceback.format_exc()
-            self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json
-
-            return {"output": None, "error": str(e), "traceback": traceback.format_exc(), "has_error": True}    
+            output = client.start_processor_with_input(example_inputs)
+             
+            if "error" in output and not output["error"] == None:
+                print ("11111", output) 
+                self.stm(self.workflow_instance_id)["error_message"] = output["error"]
+                self.stm(self.workflow_instance_id)["traceback"] = output["traceback"]
+                self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json 
+                self.stm(self.workflow_instance_id)["input"] = output["input"]
+                os.environ["OMAGENT_MODE"] = mode
+                return {"outputs": None, "class": output["class"], "error": output["error"], "traceback": output["traceback"], "has_error": True, "input":output["input"]}
+            else:
+                self.stm(self.workflow_instance_id)["error_message"] = None
+                self.stm(self.workflow_instance_id)["traceback"] = None
+                self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json            
+                print ("22222", {"has_error": False})
+                os.environ["OMAGENT_MODE"] = mode
+                return {"outputs": output, "error": None, "traceback": None, "has_error": False}
+        
+    def clear_modules(self, folder: str):        
+        agents_dir = os.path.join(folder, "agent")
+        for module_name in list(sys.modules.keys()):
+            module = sys.modules[module_name]
+            if module_name.startswith("agent") or (hasattr(module, '__file__') and module.__file__ and agents_dir in module.__file__):
+                del sys.modules[module_name]
+                # Extract the class name from the module name
+                class_name = module_name.split('.')[-1]
+                try:
+                    registry.unregister("worker", class_name)
+                except KeyError:
+                    print(f"Module {class_name} not found in registry, skipping unregistration.")
