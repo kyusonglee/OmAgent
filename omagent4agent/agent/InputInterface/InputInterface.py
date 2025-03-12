@@ -5,6 +5,7 @@ from omagent_core.utils.general import read_image
 from omagent_core.utils.logger import logging
 from omagent_core.utils.registry import registry
 import uuid
+import json
 
 CURRENT_PATH = Path(__file__).parents[0]
 
@@ -33,11 +34,22 @@ class InputInterface(BaseWorker):
         
    
         folder_path = "generated_agents/"+str(uuid.uuid4())
-        input = self.input.read_input(workflow_instance_id=self.workflow_instance_id, input_prompt="Give me an example input for the agent.")
-        content = input['messages'][-1]['content']
-        for content_item in content:
-            if content_item['type'] == 'text':
-                example_input = content_item['data']
+        is_valid_json = False
+        while not is_valid_json:
+            input = self.input.read_input(workflow_instance_id=self.workflow_instance_id, input_prompt="Give me an example input for the agent.(e.g., {'image_path': '/path/to/image.jpg'})")
+            content = input['messages'][-1]['content']
+            for content_item in content:
+                if content_item['type'] == 'text':
+                    example_input = content_item['data']
+                    try:
+                        example_input = self.clean_json(example_input)
+                        print ("example_input",example_input)
+                        json.loads(example_input)
+                        is_valid_json = True
+                        break
+                    except json.JSONDecodeError:
+                        print("Invalid JSON format. Please input a valid JSON.")
+                
 
         print ("example_input",example_input)
         self.stm(self.workflow_instance_id)["initial_description"] = initial_description
@@ -45,3 +57,7 @@ class InputInterface(BaseWorker):
         self.stm(self.workflow_instance_id)["example_input"] = example_input      
         print (initial_description)  
         return {"initial_description": initial_description}
+
+    def clean_json(self, json_str):
+        json_str = json_str.replace('”', '"').replace('”', '"')
+        return json_str.strip()

@@ -13,15 +13,7 @@ import os
 
 CURRENT_PATH = root_path = Path(__file__).parents[0]
 
-def get_returns(code):
-    # Regex to find the dictionary inside the return statement
-    match = re.search(r'return\s*{([^}]*)}', code, re.DOTALL)
-    if not match:
-        return []
-    dict_content = match.group(1)
-    # Regex to capture all keys in the dictionary
-    keys = re.findall(r'"(\w+)"\s*:', dict_content)
-    return keys
+
 
 
 @registry.register_worker()
@@ -86,7 +78,15 @@ class RuleBasedVerifier(BaseLLMBackend, BaseWorker):
         if "```python" in output:
             output = output.split("```python")[1].split("```")[0]
         return output
-                
+    def get_returns(self, code):
+        # Regex to find the dictionary inside the return statement
+        match = re.search(r'return\s*{([^}]*)}', code, re.DOTALL)
+        if not match:
+            return []
+        dict_content = match.group(1)
+        # Regex to capture all keys in the dictionary
+        keys = re.findall(r'"(\w+)"\s*:', dict_content)
+        return keys
     def verify_input_parameters(self, code, workflow_json, worker_name):   
         class_name = worker_name
         # Corrected regex pattern to capture function parameters
@@ -97,15 +97,16 @@ class RuleBasedVerifier(BaseLLMBackend, BaseWorker):
         function_parameters = [x.strip().split(":")[0] for x in function_parameters if not x.strip().startswith("*")]        
         print (function_parameters)
         tasks = {}    
-        for task in json.loads(workflow_json)["tasks"]:            
+        for task in json.loads(workflow_json)["tasks"]:     
+            print (task)       
             if task["type"] == "SWITCH":
                 for case in task["decisionCases"]:
-                    if type(case) == list:
-                        for c in case:
+                    if type(task["decisionCases"][case]) == list:
+                        for c in task["decisionCases"][case]:
                             tasks[c["name"]] = c
                     else:
-                        print ("case",case)
-                        tasks[case["name"]] = case
+                        c = task["decisionCases"][case]
+                        tasks[c["name"]] = c
             elif task["type"] == "DO_WHILE":
                 for c in task["loopOver"]:
                     tasks[c["name"]] = c  
@@ -141,7 +142,7 @@ class RuleBasedVerifier(BaseLLMBackend, BaseWorker):
         for w in workflow_json["tasks"]:     
             if w["type"] == "SWITCH":
                 for case in w["decisionCases"]:
-                    for c in case:
+                    for c in w["decisionCases"][case]:
                         Dic[c["name"]] = c["taskReferenceName"]
                         workers_names[c["taskReferenceName"]] = c["name"]
             elif w["type"] == "DO_WHILE":
@@ -166,16 +167,16 @@ class RuleBasedVerifier(BaseLLMBackend, BaseWorker):
             for x in match:
                 ref_name = x[0]
                 output_param = x[1]
-                get_returns = get_returns(workers_codes[ref_name])            
-                print (get_returns)
+                out_return = self.get_returns(workers_codes[ref_name])            
+                print (out_return)
                 print (output_param)
-                if set(output_param) == set(get_returns):
+                if set(output_param) == set(out_return):
                     continue
                 else:
-                    if ref_name in results:
+                    if not workers_names[ref_name] in results:
                         results[workers_names[ref_name]] = []
                     results[workers_names[ref_name]].append({"is_correct": False, "error_message": f"The output parameter is not in the return statement."})
-              
+        print (results)       
         return results
 
     def test_import(self, code):
