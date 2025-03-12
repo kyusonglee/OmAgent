@@ -32,7 +32,7 @@ class InputInterface(BaseWorker):
         print ("initial_description",initial_description)
         
    
-        folder_path = "agents/"+str(uuid.uuid4())
+        folder_path = "generated_agents/"+str(uuid.uuid4())
         input = self.input.read_input(workflow_instance_id=self.workflow_instance_id, input_prompt="Give me an example input for the agent.")
         content = input['messages'][-1]['content']
         for content_item in content:

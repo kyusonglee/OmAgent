@@ -104,6 +104,7 @@ class RuleBasedVerifier(BaseLLMBackend, BaseWorker):
                         for c in case:
                             tasks[c["name"]] = c
                     else:
+                        print ("case",case)
                         tasks[case["name"]] = case
             elif task["type"] == "DO_WHILE":
                 for c in task["loopOver"]:

@@ -59,7 +59,7 @@ class OmAgent4Agent(ConductorWorkflow):
         self.workflow_loop_task = DoWhileTask(
             task_ref_name="workflow_loop",
             tasks=[self.workflow_debug_task, self.workflow_verifier_task2],
-            termination_condition='if ($.workflow_verifier["switch_case_value"] == true){false;} else {true;} ',
+            termination_condition='if ($.workflow_verifier2["switch_case_value"] == true){false;} else {true;} ',
         )
 
         self.workflow_verifier_switch_task = SwitchTask(
@@ -86,8 +86,7 @@ class OmAgent4Agent(ConductorWorkflow):
         )
         self.rulebase_worker_verifier_task = simple_task(
             task_def_name=RuleBasedVerifier,
-            task_reference_name="rulebase_worker_verifier",
-            inputs={"folder_path": None, "example_inputs": None}
+            task_reference_name="rulebase_worker_verifier"
         )
 
         self.debug_task = simple_task(

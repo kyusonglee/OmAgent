@@ -25,7 +25,7 @@ class ExecuteAgent(BaseWorker):
                 example_inputs = self.stm(self.workflow_instance_id)["example_input"]
 
             from omagent_core.engine.workflow.conductor_workflow import ConductorWorkflow
-            from omagent_core.clients.devices.programmatic import ProgrammaticClient
+            from omagent_core.clients.devices.programmatic.lite_client import ProgrammaticClient
             logging.init_logger("omagent", "omagent", level="INFO")
             
             if type(example_inputs) == str:
@@ -37,6 +37,7 @@ class ExecuteAgent(BaseWorker):
             if target_folder not in sys.path:
                 sys.path.insert(0, target_folder)
             print(f"Added {target_folder} to sys.path")
+            os.environ["OMAGENT_MODE"] = "lite"  
             #self.clear_modules(folder_path)
             registry.import_module(os.path.join(target_folder, "agent"))
 
@@ -45,6 +46,7 @@ class ExecuteAgent(BaseWorker):
 
             workflow = ConductorWorkflow(name=workflow_json["name"], lite_version=True)
             workflow.load(workflow_path)
+            print ("/".join(workflow_path.split("/")[:-1])+"/configs")
             client = ProgrammaticClient(
                 processor=workflow,
                 config_path="/".join(workflow_path.split("/")[:-1])+"/configs",
@@ -52,8 +54,8 @@ class ExecuteAgent(BaseWorker):
             self.stm(self.workflow_instance_id)["example_input"] = example_inputs
 
             output = client.start_processor_with_input(example_inputs)
-            print ("output",output)
-            if "error" in output:
+            print ("1111111111111",output)
+            if output and "error" in output:
                 self.stm(self.workflow_instance_id)["error_message"] = output["error"]
                 self.stm(self.workflow_instance_id)["traceback"] = output["traceback"]
                 self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json 
