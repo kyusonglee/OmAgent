@@ -1,4 +1,4 @@
-llm: ${sub|text_res}
+llm: ${sub|llm_text}
 tools:
   - name: GeneralOD    
     url: http://10.0.0.132:8005/inf_predict
