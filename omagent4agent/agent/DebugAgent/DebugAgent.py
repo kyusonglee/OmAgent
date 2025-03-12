@@ -47,25 +47,34 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
                 code += temp
                 code += "\n\n"
                 dict_code[file_path] = temp
+
         if error_message:
             self.callback.info(agent_id=self.workflow_instance_id, progress="DEBUGING", message=error_message)
-            new_codes = self.simple_infer(traceback=traceback, error_message=error_message, workflow=workflow, code=code, input=example_input)["choices"][0]["message"].get("content")        
-            new_codes = self.parse(new_codes)
-            for new_code in new_codes:
-                file_path = new_code["file_path"]
-                old_code = dict_code[file_path]         
-                diff_code = self.diff(old_code, new_code["code"])  
-                self.callback.info(agent_id=self.workflow_instance_id, progress="Suggestion: "+file_path, message=diff_code)
-                input = self.input.read_input(workflow_instance_id=self.workflow_instance_id, input_prompt="Do you want to fix the error? (yes/no)")
-                content = input['messages'][-1]['content']
-                for content_item in content:
-                    if content_item['type'] == 'text':
-                        fix_error = content_item['data']
-                if fix_error == "yes":
-                    with open(file_path, "w") as f:                                                             
-                        f.write(new_code["code"])
-                    self.clear_modules(folder_path)
-            return {"finished": False}
+            fix_suggestion = ""
+            while True:
+                new_codes = self.simple_infer(fix_suggestion=fix_suggestion, traceback=traceback, error_message=error_message, workflow=workflow, code=code, input=example_input)["choices"][0]["message"].get("content")        
+                new_codes = self.parse(new_codes)
+                for new_code in new_codes:
+                    file_path = new_code["file_path"]
+                    old_code = dict_code[file_path]         
+                    diff_code = self.diff(old_code, new_code["code"])  
+                    self.callback.info(agent_id=self.workflow_instance_id, progress="Suggestion: "+file_path, message=diff_code)
+                    input = self.input.read_input(workflow_instance_id=self.workflow_instance_id, input_prompt="Do you want to fix the error? (yes/no) If you have any suggestions to fix the error, please provide the suggestions, otherwise, just say yes or no")
+                    content = input['messages'][-1]['content']
+                    for content_item in content:
+                        if content_item['type'] == 'text':
+                            fix_error = content_item['data']
+                    if fix_error == "yes":
+                        with open(file_path, "w") as f:                                                             
+                            f.write(new_code["code"])
+                        self.clear_modules(folder_path)
+                        return {"finished": False}
+                    elif fix_error == "no":
+                        self.callback.info(agent_id=self.workflow_instance_id, progress="Suggestion: "+file_path, message="No fix")
+                        return {"finished": False}
+                    else:
+                        fix_suggestion = fix_error
+
         else:
             return {"finished": True}
         

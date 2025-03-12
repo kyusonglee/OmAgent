@@ -11,8 +11,8 @@ class WorkflowVerifier(BaseWorker):
         try:
             workflow_json = json.loads(workflow_json)
         except:
-            self.callback.error(message="Invalid JSON:"+str(workflow_json), agent_id=self.workflow_instance_id, progress="WorkflowVerifier")
-            self.stm(self.workflow_instance_id)["workflow_error_msg"] = "Invalid JSON. Json parsing error"
+            self.callback.info(message="Invalid JSON:"+str(workflow_json), agent_id=self.workflow_instance_id, progress="WorkflowVerifier")            
+            self.stm(self.workflow_instance_id)["workflow_error_msg"] = "Invalid JSON. Json parsing error"            
             return {"switch_case_value": False, "error": "Invalid JSON"}
 
         for task in workflow_json.get('tasks', []):

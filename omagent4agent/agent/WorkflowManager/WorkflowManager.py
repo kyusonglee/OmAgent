@@ -37,8 +37,12 @@ class WorkflowManager(BaseLLMBackend, BaseWorker):
         plan = self.stm(self.workflow_instance_id)["plan"]       
        
         workflow_json = self.simple_infer(content=initial_description, plan=plan, input=example_input, input_keys=keys)["choices"][0]["message"].get("content")
-
+        workflow_json = self.parse(workflow_json)
         self.callback.info(self.workflow_instance_id, progress="WorkflowManager", message=workflow_json)
         self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json
         return workflow_json
 
+    def parse(self, workflow_json):
+        workflow_json = workflow_json.replace('```json', '').replace('```', '')
+        workflow_json = workflow_json.strip()
+        return workflow_json
