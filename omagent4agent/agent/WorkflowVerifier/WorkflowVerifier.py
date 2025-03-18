@@ -32,11 +32,11 @@ class WorkflowVerifier(BaseWorker):
                     self.stm(self.workflow_instance_id)["workflow_error_msg"] = "DO_WHILE task is missing loopCondition or loopOver"
                     return {"switch_case_value": False, "error": "DO_WHILE task is missing loopCondition or loopOver"}
                 # Extract taskReferenceName from loopCondition
-                task_ref_name = loop_condition.split('$.')[1].split('[')[0]
-                if not any(t['taskReferenceName'] == task_ref_name for t in loop_over):
-                    self.callback.info(message=f"Error: taskReferenceName '{task_ref_name}' in loopCondition is not in loopOver for task '{task['name']}'.", agent_id=self.workflow_instance_id, progress="WorkflowVerifier")
-                    self.stm(self.workflow_instance_id)["workflow_error_msg"] = "taskReferenceName in loopCondition is not in loopOver"
-                    return {"switch_case_value": False, "error": "taskReferenceName in loopCondition is not in loopOver"}
+                #task_ref_name = loop_condition.split('$.')[1].split('[')[0]
+                #if not any(t['taskReferenceName'] == task_ref_name for t in loop_over):
+                #    self.callback.info(message=f"Error: taskReferenceName '{task_ref_name}' in loopCondition is not in loopOver for task '{task['name']}'.", agent_id=self.workflow_instance_id, progress="WorkflowVerifier")
+                #    self.stm(self.workflow_instance_id)["workflow_error_msg"] = "taskReferenceName in loopCondition is not in loopOver"
+                #    return {"switch_case_value": False, "error": "taskReferenceName in loopCondition is not in loopOver"}
 
         first_task = workflow_json["tasks"][0]        
         if first_task["inputParameters"] == {}:

@@ -24,7 +24,7 @@ class WorkerManager(BaseLLMBackend, BaseWorker):
     prompts: List[PromptTemplate] = Field(
         default=[
             PromptTemplate.from_file(CURRENT_PATH.joinpath("worker_system.prompt"), role="system"),
-            PromptTemplate.from_file(CURRENT_PATH.joinpath("worker_user.prompt"), role="user"),   
+            PromptTemplate.from_file(CURRENT_PATH.joinpath("worker_user.prompt"), role="user")
         ]
     )
     llm: BaseLLM
@@ -69,10 +69,12 @@ class WorkerManager(BaseLLMBackend, BaseWorker):
                     with open(init_file, "w") as f:
                         f.write("# Auto-generated __init__.py for agents sub-package\n")
                     print(f"Ensured sub-package: {init_file}")
-
+        self.callback.info(self.workflow_instance_id, progress="WORKER MANAGER", message="********ALL WORKERS GENERATED********")
         self.stm(self.workflow_instance_id)["generated_workers"] = generated_workers
         
     def parse_code(self, code: str):
         if "```python" in code:
             code = code.split("```python")[1].split("```")[0]
+        code = code.replace("<tag>", "{{")
+        code = code.replace("</tag>", "}}")
         return code

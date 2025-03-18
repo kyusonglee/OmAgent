@@ -1,3 +1,2 @@
 Provide a detailed, step-by-step description of the approach without including any code. 
-You have several tools from omagent-core such as LLM, VLM, Object Detection, Face Detection, Search, Super Resolution (when only the image is less than 128x128), etc.
 Plan out a solution for the following task: {{prompt}}

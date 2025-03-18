@@ -11,7 +11,6 @@ Requirements:
 3. Save the implementation in a Python file named '{worker_name}.py' in the appropriate directory.
 
 Example Code1:
-```python
 from omagent_core.engine.worker.base import BaseWorker
 from omagent_core.utils.registry import registry
 
@@ -20,7 +19,6 @@ class {worker_name}(BaseWorker):
     def _run(self, *args, **kwargs):
         # Logic for {worker_description}
         ....
-```
 
 Example Code2 (if the worker has input parameters):
 ```python
@@ -32,7 +30,6 @@ class {worker_name}(BaseWorker):
     def _run(self, param1, param2, *args, **kwargs):
         # Logic for {worker_description}
         ....
-```
 
 
 The return of worker only use decisionCases for SWITCH and loopCondition for DO_WHILE. Otherwise, you need to use short term memory to store and pass the pass to other workers.
@@ -42,8 +39,7 @@ self.stm(self.workflow_instance_id)["user_instruction"] = user_instruction
 This is an example of using short term memory to load values.
 user_instruction = self.stm(self.workflow_instance_id)["user_instruction"]
 
-Here is an complete simple example of using short term memory to VQA including worker and workflow json:
-```python
+Here is an complete simple example of using short term memory to SimpleVLM including worker and workflow json:
 from pathlib import Path
 from omagent_core.engine.worker.base import BaseWorker
 from omagent_core.utils.general import read_image
@@ -67,11 +63,11 @@ from omagent_core.utils.general import encode_image
 from omagent_core.utils.registry import registry
 
 @registry.register_worker()
-class SimpleVQA(BaseWorker, BaseLLMBackend):
+class SimpleVLM(BaseWorker, BaseLLMBackend):
     prompts: List[PromptTemplate] = Field(
         default=[
             PromptTemplate.from_template("You are a helpful assistant.", role="system"),
-            PromptTemplate.from_template("{{user_instruction}}, {{image}}", role="user"),
+            PromptTemplate.from_template("<tag>user_instruction</tag>, <tag>image</tag>", role="user"),
         ]
     )
     llm: OpenaiGPTLLM
@@ -83,9 +79,7 @@ class SimpleVQA(BaseWorker, BaseLLMBackend):
             "content"
         )
         return {"last_output": chat_completion_res}
-```
 Workflow json:
-```json
 {
     "name": "step1_simpleVQA",
     "tasks": [
@@ -99,8 +93,8 @@ Workflow json:
             "taskDefinition": {}
         },
         {
-            "name": "SimpleVQA",
-            "taskReferenceName": "simple_vqa",
+            "name": "SimpleVLM",
+            "taskReferenceName": "simple_vlm",
             "inputParameters": {},
             "type": "SIMPLE",
             "taskDefinition": {}
@@ -116,7 +110,6 @@ Workflow json:
     "variables": {},
     "inputTemplate": {}
 }
-```
 
 The keys of inputParameters must be matched with the function parameters.
 {
@@ -129,7 +122,6 @@ The keys of inputParameters must be matched with the function parameters.
     "taskDefinition": {}
 },
 it should be like below:
-```python
 from omagent_core.engine.worker.base import BaseWorker
 from omagent_core.utils.registry import registry
 
@@ -138,7 +130,6 @@ class InputInterface(BaseWorker):
     def _run(self, inputs, *args, **kwargs):
         # Logic for {worker_description}
         ....
-```
 First task of inputParameters's value must be "${workflow.input.{key_name}}".
     
 
@@ -167,7 +158,6 @@ the the return of def _run can be empty many times. If there are SWITCH or DO_WH
 There are one available functions from omagent_core.utils.general import read_image
 Do not use other functions from omagent_core.utils.general.
 
-```python
 def read_image(input_source) -> Image.Image:
     """
     Read an image from a local path, URL, base64 string, PIL Image object, or Path object.
@@ -220,40 +210,12 @@ def read_image(input_source) -> Image.Image:
     raise ValueError(
         "Invalid input type. Must be a string (URL, file path, or base64), Path object, or PIL Image object."
     )
-```
 
 The worker code must be complete. Do not use Placeholder or Dummy function.
 
 Tools:
-- You can use tool_manager to call other tools. Here are available tools:
-- GeneralOD: Detect objects in the image.
-```python
-result = tool_manager.execute("GeneralOD", {"image": image, "labels": "{target_labels separated by comma}", "threshold": 0.5, "nms_threshold": 0.5}) # image can be image url, pill image, image base64, etc.
-```
-an example result:
-{"objects": [{'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.958407998085022, 'label': 'dog'}, {'xmin': 928.0, 'ymin': 522.0, 'xmax': 1493.0, 'ymax': 1079.0, 'conf': 0.8276795148849487, 'label': 'person'}, {'xmin': 1108.0, 'ymin': 700.0, 'xmax': 1255.0, 'ymax': 888.0, 'conf': 0.1099763959646225, 'label': 'dog'}, {'xmin': 1180.0, 'ymin': 750.0, 'xmax': 1215.0, 'ymax': 795.0, 'conf': 0.10541261732578278, 'label': 'dog'}, {'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.10040629655122757, 'label': 'person'}]}
-
-- DetectAll: Detect all objects in the image.
-```python
-result = tool_manager.execute("DetectAll", {"image": image}) # image can be image url, pill image, image base64, etc.
-```
-an example result:
-{"objects": [{'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.958407998085022, 'label': 'dog'}, {'xmin': 928.0, 'ymin': 522.0, 'xmax': 1493.0, 'ymax': 1079.0, 'conf': 0.8276795148849487, 'label': 'person'}, {'xmin': 1108.0, 'ymin': 700.0, 'xmax': 1255.0, 'ymax': 888.0, 'conf': 0.1099763959646225, 'label': 'dog'}, {'xmin': 1180.0, 'ymin': 750.0, 'xmax': 1215.0, 'ymax': 795.0, 'conf': 0.10541261732578278, 'label': 'dog'}, {'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.10040629655122757, 'label': 'person'}]}
-
-- SuperResolution: Enhance the image.
-Use this tool when the image is low resolution less than 128x128.
-```python
-result = tool_manager.execute("SuperResolution", {"image": image}) # image can be image url, pill image, image base64, etc.
-```
-An example result:
-{"upscaled_image": upscaled_image} #upscaled_image is PIL image
-
-all image for tools, it will be the best if image type is url. if local file path, then convert to base64 and use in tools.
-
 - Search: Search the internet for information.
-```python
 result = tool_manager.execute("TavilyWebSearch", {"search_query": query, "topic": "general", "include_answer": True, "include_images": False, "include_raw_content": False, "days": 3, "max_results": 5})
-```
 
 You must include tool_manager: ToolManager in the worker.
 example:
@@ -267,7 +229,6 @@ class {worker_name}(BaseWorker):
     def _run(self, *args, **kwargs):
         # Logic for {worker_description}
         ....
-```
 if you need to use other tools, you can use llm with prompt engineering using above SimpleVQA example.
 
 
@@ -320,7 +281,50 @@ if an value of inputParameters is "${object_detection.output.mouse_detected}", i
 in object_detection worker, the function of _run return should be like below:
 return {"mouse_detected": ...}
 
-Do not use kwargs.get() to get input parameters in the worker.
+- Do not use kwargs.get() to get input parameters in the worker.
+
+- Use print to debug the informate values of the worker.
+
+- At the very last worker, please return the results with "last_output" key.
+
+- Please print to inform the user about the worker's progress and the output of LLM or VLM. Here is an example:
+print(f".....")
+
+- Please do not overwrite the image in the short term memory. Use the new key to store the image.
+
+- Please use VLM to solve the problem if the problem is about image. You can define the prompt based on the problem. 
+Example how to use VLM:
+from omagent_core.engine.worker.base import BaseWorker
+from omagent_core.models.llms.base import BaseLLMBackend
+from omagent_core.models.llms.openai_gpt import OpenaiGPTLLM
+from omagent_core.models.llms.prompt.parser import StrParser
+from omagent_core.models.llms.prompt.prompt import PromptTemplate
+from omagent_core.utils.registry import registry
+from pydantic import Field
+
+@registry.register_worker()
+class ExampleVLM(BaseWorker, BaseLLMBackend):
+    prompts: List[PromptTemplate] = Field(
+        default=[
+            PromptTemplate.from_template("You are a helpful assistant.", role="system"),
+            PromptTemplate.from_template("<tag>user_instruction</tag>, <tag>image</tag>", role="user"), 
+        ]
+    )
+    llm: OpenaiGPTLLM
+    def _run(self, *args, **kwargs):        
+        user_instruction = self.stm(self.workflow_instance_id)["user_instruction"]
+        image_url = self.stm(self.workflow_instance_id)["image_cache"]["<image_0>"]
+        img = read_image(input_source=image_url)
+        chat_completion_res = self.simple_infer(user_instruction=user_instruction, image=img)["choices"][0]["message"].get(
+            "content"
+        )
+        return {"last_output": chat_completion_res}
+
+- Please define the prompt to define the tool for example, if you want to use OD, please use VLM to define system as "you are object detector.." in user prompt, define the output format (e.g.,  an example result:
+{"objects": [{'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.958407998085022, 'label': 'dog'}, {'xmin': 928.0, 'ymin': 522.0, 'xmax': 1493.0, 'ymax': 1079.0, 'conf': 0.82, 'label': 'person'}, {'xmin': 1108.0, 'ymin': 700.0, 'xmax': 1255.0, 'ymax': 888.0, 'conf': 0.10, 'label': 'dog'}, {'xmin': 1180.0, 'ymin': 750.0, 'xmax': 1215.0, 'ymax': 795.0, 'conf': 0.10, 'label': 'dog'}, {'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.10, 'label': 'person'}]}) and use as json and remove '''json ``` and parse json.loads to use it.  
+In the PromptTemplate.from_template, you need to add "<tag>image</tag>" in the user prompt and add "image" in the input parameters of self.simple_infer.
+
+- 
 
 Previous codes (Please use the previous codes to implement the worker like how to set and use stm and input and output. If there is no previous codes, please implement the worker from scratch.. ):
 {{previous_codes}}

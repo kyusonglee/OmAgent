@@ -17,21 +17,32 @@ class TestInput(BaseWorker):
     def _run(self, *args, **kwargs):
         # Read user input through configured input interface
         input_keys = {}
+        folders = {}
         for i, agent in enumerate(glob2.glob(os.path.join(ROOT_PATH, "generated_agents", "**","*.json"))):
             with open(agent, "r") as f:
                 agent_json = json.load(f)   
+                
                 keys = agent_json["tasks"][0]["inputParameters"].keys()
-                _id = agent.split("/")[-2]                             
-                self.callback.info(agent_id=self.workflow_instance_id, progress=f"{i} {agent_json['name']}", message=f"{_id}")
+                _id = agent.split("/")[-2]       
+                folders[str(i+1)] = _id                      
+                self.callback.info(agent_id=self.workflow_instance_id, progress=f"", message=f"{i+1}. {agent_json['name']}, folders: generated_agents/{_id}")
                 input_keys[_id] = keys
 
-        input = self.input.read_input(workflow_instance_id=self.workflow_instance_id, input_prompt="Path to the folder where the agent will be created.")
+        while True:
+            input = self.input.read_input(workflow_instance_id=self.workflow_instance_id, input_prompt=f"Please select the number [1-{len(folders)}] to test the agent.")
+            content = input['messages'][-1]['content']
+            print ("content",content)
+            folder_path = None
+            for content_item in content:
+                if content_item['type'] == 'text' and content_item['data'] in folders:
+                    folder_path = folders[content_item['data']]
+                    break
+            if folder_path:
+                break
+            else:
+                self.callback.info(agent_id=self.workflow_instance_id, progress="", message="Invalid selection. Please select a valid number.")
 
-        content = input['messages'][-1]['content']
-        for content_item in content:
-            if content_item['type'] == 'text':
-                folder_path = content_item['data']
-        print ("folder_path",folder_path)
+        print("folder_path", folder_path)
 
         example_input = {}
         for key in input_keys[folder_path]:            

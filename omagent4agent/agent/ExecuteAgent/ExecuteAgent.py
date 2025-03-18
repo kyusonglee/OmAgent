@@ -47,6 +47,7 @@ class ExecuteAgent(BaseWorker):
             workflow = ConductorWorkflow(name=workflow_json["name"], lite_version=True)
             workflow.load(workflow_path)
             print ("/".join(workflow_path.split("/")[:-1])+"/configs")
+            self.callback.info(agent_id=self.workflow_instance_id, progress="EXECUTING", message="Loading workflow...")
             client = ProgrammaticClient(
                 processor=workflow,
                 config_path="/".join(workflow_path.split("/")[:-1])+"/configs",
@@ -55,6 +56,16 @@ class ExecuteAgent(BaseWorker):
 
             output = client.start_processor_with_input(example_inputs)
             print ("1111111111111",output)
+            
+            if output and "last_output" in output:
+                self.stm(self.workflow_instance_id)["error_message"] = "no error"
+                self.stm(self.workflow_instance_id)["traceback"] = "None"
+                self.stm(self.workflow_instance_id)["workflow_json"] = "" 
+                self.stm(self.workflow_instance_id)["input"] = ""
+                self.callback.info(agent_id=self.workflow_instance_id, progress="EXECUTE OUTPUT", message=output["last_output"])
+            else:
+                self.callback.info(agent_id=self.workflow_instance_id, progress="EXECUTE OUTPUT", message="Finished")
+            
             if output and "error" in output:
                 self.stm(self.workflow_instance_id)["error_message"] = output["error"]
                 self.stm(self.workflow_instance_id)["traceback"] = output["traceback"]

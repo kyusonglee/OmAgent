@@ -1,8 +1,8 @@
 llm: ${sub|llm_text}
 tools:
-  - name: GeneralOD    
-    url: http://10.0.0.132:8005/inf_predict
+  - name: ObjectDetection    
+    url: http://67.168.56.110:8005/inf_predict
   - name: SuperResolution
-    api_url: http://10.0.0.26:8010/superres
+    api_url: http://67.168.56.110:8010/superres
   - name: TavilyWebSearch
     tavily_api_key: ${env|tavily_api_key, null}
