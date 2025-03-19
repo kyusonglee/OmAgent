@@ -56,7 +56,7 @@ class InputInterface(BaseWorker):
 from omagent_core.engine.worker.base import BaseWorker
 from omagent_core.models.llms.base import BaseLLMBackend
 from omagent_core.models.llms.openai_gpt import OpenaiGPTLLM
-from omagent_core.models.llms.prompt.parser import StrParser
+from omagent_core.models.llms.prompt.parser import DictParser
 from omagent_core.models.llms.schemas import Content, Message
 from omagent_core.utils.container import container
 from omagent_core.utils.general import encode_image
@@ -66,11 +66,12 @@ from omagent_core.utils.registry import registry
 class SimpleVLM(BaseWorker, BaseLLMBackend):
     prompts: List[PromptTemplate] = Field(
         default=[
-            PromptTemplate.from_template("You are a helpful assistant.", role="system"),
+            PromptTemplate.from_template("You are a helpful assistant. Please output the result in JSON format.", role="system"),
             PromptTemplate.from_template("<tag>user_instruction</tag>, <tag>image</tag>", role="user"),
         ]
     )
     llm: OpenaiGPTLLM
+    output_parser: DictParser = DictParser()
     def _run(self, *args, **kwargs):        
         user_instruction = self.stm(self.workflow_instance_id)["user_instruction"]
         image_url = self.stm(self.workflow_instance_id)["image_cache"]["<image_0>"]
@@ -297,7 +298,7 @@ Example how to use VLM:
 from omagent_core.engine.worker.base import BaseWorker
 from omagent_core.models.llms.base import BaseLLMBackend
 from omagent_core.models.llms.openai_gpt import OpenaiGPTLLM
-from omagent_core.models.llms.prompt.parser import StrParser
+from omagent_core.models.llms.prompt.parser import DictParser
 from omagent_core.models.llms.prompt.prompt import PromptTemplate
 from omagent_core.utils.registry import registry
 from pydantic import Field
@@ -306,22 +307,24 @@ from pydantic import Field
 class ExampleVLM(BaseWorker, BaseLLMBackend):
     prompts: List[PromptTemplate] = Field(
         default=[
-            PromptTemplate.from_template("You are a helpful assistant.", role="system"),
-            PromptTemplate.from_template("<tag>user_instruction</tag>, <tag>image</tag>", role="user"), 
+            PromptTemplate.from_template("You are a helpful assistant. Please output the result in JSON format.", role="system"),
+            PromptTemplate.from_template("<tag>user_instruction</tag>, example output: <tag>example_output</tag>, <tag>image</tag>", role="user"), 
         ]
     )
     llm: OpenaiGPTLLM
+    output_parser: DictParser = DictParser()
     def _run(self, *args, **kwargs):        
         user_instruction = self.stm(self.workflow_instance_id)["user_instruction"]
         image_url = self.stm(self.workflow_instance_id)["image_cache"]["<image_0>"]
         img = read_image(input_source=image_url)
-        chat_completion_res = self.simple_infer(user_instruction=user_instruction, image=img)["choices"][0]["message"].get(
+        example_output = {"objects": [{'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.958407998085022, 'label': 'dog'}, {'xmin': 928.0, 'ymin': 522.0, 'xmax': 1493.0, 'ymax': 1079.0, 'conf': 0.82, 'label': 'person'}, {'xmin': 1108.0, 'ymin': 700.0, 'xmax': 1255.0, 'ymax': 888.0, 'conf': 0.10, 'label': 'dog'}, {'xmin': 1180.0, 'ymin': 750.0, 'xmax': 1215.0, 'ymax': 795.0, 'conf': 0.10, 'label': 'dog'}, {'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.10, 'label': 'person'}]}).
+
+        chat_completion_res = self.simple_infer(user_instruction=user_instruction, example_output=example_output, image=img)["choices"][0]["message"].get(
             "content"
         )
         return {"last_output": chat_completion_res}
 
-- Please define the prompt to define the tool for example, if you want to use OD, please use VLM to define system as "you are object detector.." in user prompt, define the output format (e.g.,  an example result:
-{"objects": [{'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.958407998085022, 'label': 'dog'}, {'xmin': 928.0, 'ymin': 522.0, 'xmax': 1493.0, 'ymax': 1079.0, 'conf': 0.82, 'label': 'person'}, {'xmin': 1108.0, 'ymin': 700.0, 'xmax': 1255.0, 'ymax': 888.0, 'conf': 0.10, 'label': 'dog'}, {'xmin': 1180.0, 'ymin': 750.0, 'xmax': 1215.0, 'ymax': 795.0, 'conf': 0.10, 'label': 'dog'}, {'xmin': 461.0, 'ymin': 586.0, 'xmax': 1188.0, 'ymax': 1197.0, 'conf': 0.10, 'label': 'person'}]}) and use as json and remove '''json ``` and parse json.loads to use it.  
+- Please define the prompt to define the tool for example, if you want to use OD, please use VLM to define system as "you are object detector.." in user prompt, define the output format.
 In the PromptTemplate.from_template, you need to add "<tag>image</tag>" in the user prompt and add "image" in the input parameters of self.simple_infer.
 
 - 
