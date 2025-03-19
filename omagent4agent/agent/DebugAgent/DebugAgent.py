@@ -13,7 +13,9 @@ from omagent_core.utils.logger import logging
 from omagent_core.utils.registry import registry
 from pydantic import Field
 from omagent_core.models.llms.prompt.parser import *
-
+import json5
+import demjson3
+import traceback
 CURRENT_PATH = Path(__file__).parent
 
 
@@ -28,15 +30,18 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
         PromptTemplate.from_file(CURRENT_PATH.joinpath("debug_agent_user.prompt"), role="user"),
     ])
     llm: BaseLLM
-    output_parser: ListParser = ListParser()
+    output_parser: DictParser = DictParser()
     def _run(self, folder_path, example_inputs, *args, **kwargs):
+        print ("folder_path 1111111111111",folder_path)
         if not folder_path:
             folder_path = self.stm(self.workflow_instance_id).get("folder_path", "")
         if not example_inputs:
             example_inputs = self.stm(self.workflow_instance_id).get("example_input", "")
+        count = 0
         while True:
             state = self.execute_workflow(folder_path=folder_path, example_inputs=example_inputs)
-            if state.get("has_error", False):
+            print ("state 2222222222222",state)
+            if not state.get("status", 'fail') == 'fail':
                 self.callback.info(
                 agent_id=self.workflow_instance_id,
                 progress="DEBUGGING",
@@ -44,9 +49,13 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
             )
                 return {"finished": True}
             else:
+                print ("state 3333333333333",state)
                 self.debug(folder_path, state)
-                return {"finished": False}
-        
+                print ("debug finished")
+                count += 1
+                print ("count 6666666666666",count)
+                if count >= 5:
+                    return {"finished": False}
 
     def debug(self, folder_path, state):
         error_message = state.get("error_message", "")
@@ -58,10 +67,19 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
         code_by_file, full_code = self.load_agent_code(folder_path)
 
         # Generate debugging suggestions using the LLM.
-        suggestions = self.get_suggestions(traceback, error_message, workflow, full_code, example_input)
-        print ("suggestions 4444444444444",suggestions)
+        try:
+            suggestions = self.get_suggestions(traceback, error_message, workflow, full_code, example_input)
+            print ("suggestions 4444444444444",suggestions)
+        except Exception as e:
+            logging.error(f"Error getting suggestions: {e}")
+            return
+
         # Apply each suggestion to update the code.
         for suggestion in suggestions:
+            if type(suggestion) == str:
+                suggestion = suggestion.replace("```json", "").replace("```", "")
+                print ("suggestion 5555555555555",suggestion)
+                suggestion = demjson3.decode(suggestion)
             file_path = suggestion.get("file_path")
             new_code = suggestion.get("code")
             if file_path not in code_by_file:
@@ -69,7 +87,7 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
                 continue
             try:
                 with open(file_path, "w") as f:
-                    f.write(new_code)
+                    f.write(new_code.replace("<tag>", "{{").replace("</tag>", "}}"))
             except Exception as e:
                 logging.error(f"Error writing to {file_path}: {e}")
                 continue
@@ -110,6 +128,7 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
         """
         print ("traceback 1111111111111",traceback)
         print ("error_message 1111111111111",error_message)    
+        
         suggestions_response = self.simple_infer(
             traceback=traceback,
             error_message=error_message,
@@ -135,7 +154,6 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
                 return suggestions
             except Exception as e:
                 logging.error(f"Error parsing suggestions: {e}")
-                exit()
                 return None
 
     def parse(self, code: str):
@@ -208,7 +226,7 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
             registry.import_module(os.path.join(target_folder, "agent"))
         except Exception as e:
             logging.error(f"Error importing modules: {e}")
-            return {"outputs": None, "error": str(e), "traceback": "", "status": "fail"}
+            return {"outputs": None, "error": str(e), "traceback": traceback.format_exc(), "status": "fail"}
 
         with open(workflow_path) as f:
             workflow_json = json.load(f)

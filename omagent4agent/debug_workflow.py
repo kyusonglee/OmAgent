@@ -19,16 +19,18 @@ class OmAgent4Agent(ConductorWorkflow):
         self._configure_workflow()
 
     def _configure_tasks(self):
-
+        """    
         self.execute_agent_task = simple_task(
             task_def_name=ExecuteAgent,
             task_reference_name="execute_agent",
             inputs={"folder_path": self.folder_path, "example_inputs": self.example_inputs}
         )
+        """
 
         self.debug_task = simple_task(
             task_def_name=DebugAgent,
             task_reference_name="debug",
+            inputs={"folder_path": self.folder_path, "example_inputs": self.example_inputs}
         )
 
         self.execute_agent_task2 = simple_task(
@@ -39,18 +41,25 @@ class OmAgent4Agent(ConductorWorkflow):
 
         self.switch_task = SwitchTask(
             task_ref_name="switch_task",
-            case_expression=self.execute_agent_task.output("has_error"),
+            case_expression=self.execute_agent_task2.output("has_error"),
         )
-
+        """
         self.workflow_loop_task = DoWhileTask(
             task_ref_name="workflow_loop",
             tasks=[self.debug_task, self.execute_agent_task2],
             termination_condition="if ($.debug['finished'] == true){false;} else {true;} ",
             #termination_condition="if ($.execute_agent_task2['has_error'] == true){false;} else {true;} ",
         )
+        """
 
+        #self.switch_task.switch_case("true", self.workflow_loop_task)   
 
-        self.switch_task.switch_case("true", self.workflow_loop_task)   
+        self.workflow_loop_task2 = DoWhileTask(
+            task_ref_name="workflow_loop2",
+            tasks=[self.execute_agent_task2, self.debug_task],
+            termination_condition="if ($.execute_agent_task2['has_error'] == true){false;} else {true;} ",
+            #termination_condition="if ($.execute_agent_task2['has_error'] == true){false;} else {true;} ",
+        )
 
         self.task_exit_monitor_task = simple_task(
             task_def_name=TaskExitMonitor, task_reference_name="task_exit_monitor"
@@ -61,7 +70,7 @@ class OmAgent4Agent(ConductorWorkflow):
         # configure workflow execution flow
         #self >> self.planner_task >> self.workflow_manager_task >> self.worker_manager_task >> self.worker_verifier_task
         #self >> self.planner_task >> self.workflow_loop_task >> self.worker_manager_task >> self.config_manager_task 
-        self >> self.execute_agent_task >> self.switch_task  
+        self >> self.debug_task   
         #self >> self.execute_agent_task
         #self.dnc_structure = self.task_exit_monitor_task.output("dnc_structure")
         #self.last_output = self.task_exit_monitor_task.output("last_output")

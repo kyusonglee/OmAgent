@@ -1,5 +1,5 @@
 name: OpenaiGPTLLM
-model_id: gpt-4o
+model_id: gpt-4o-mini
 api_key: ${env| custom_openai_key2, openai_api_key}
 endpoint: ${env| custom_openai_endpoint2, https://api.openai.com/v1}
 temperature: 0

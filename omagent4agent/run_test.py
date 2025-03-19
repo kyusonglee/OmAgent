@@ -12,7 +12,7 @@ from omagent_core.clients.devices.cli import DefaultClient
 #from omagent_core.engine.workflow.task.set_variable_task import SetVariableTask
 from omagent_core.utils.logger import logging
 #from omagent_core.engine.workflow.task.do_while_task import DoWhileTask
-#from omagent_core.clients.devices.webpage.client import WebpageClient
+from omagent_core.clients.devices.webpage.client import WebpageClient
 
 from agent.InputInterface.TestInput import TestInput
 from test_workflow import OmAgent4Agent
@@ -27,6 +27,7 @@ CURRENT_PATH = Path(__file__).parents[0]
 registry.import_module(project_path=CURRENT_PATH.joinpath('agent'))
 
 container.register_stm("SharedMemSTM")
+#container.register_stm("RedisSTM")
 # Load container configuration from YAML file
 container.from_config(CURRENT_PATH.joinpath('container.yaml'))
 
