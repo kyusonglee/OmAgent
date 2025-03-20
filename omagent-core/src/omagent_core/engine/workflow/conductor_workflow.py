@@ -227,7 +227,7 @@ class ConductorWorkflow:
                     for case_task in value:
                         case_tasks.append(simple_task(task_def_name=case_task.name, task_reference_name=case_task.task_reference_name, inputs=case_task.input_parameters))
                     switch_task.switch_case(key, case_tasks)
-                self._tasks.append(switch_task)
+                    self._tasks.append(switch_task)
 
             elif task.type == TaskType.DO_WHILE:
                 loop_over_tasks = []
