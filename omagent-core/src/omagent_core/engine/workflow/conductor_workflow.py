@@ -232,9 +232,14 @@ class ConductorWorkflow:
             elif task.type == TaskType.DO_WHILE:
                 loop_over_tasks = []
                 for loop_task in task.loop_over:
+                    if not loop_task.input_parameters:
+                        loop_task.input_parameters = {}
+
                     loop_over_tasks.append(simple_task(task_def_name=loop_task.name, task_reference_name=loop_task.task_reference_name, inputs=loop_task.input_parameters))
                 self._tasks.append(DoWhileTask(task_ref_name=task.task_reference_name, termination_condition=task.loop_condition, tasks=loop_over_tasks))
             else:
+                if not task.input_parameters:
+                    task.input_parameters = {}
                 self._tasks.append(simple_task(task_def_name=task.name, task_reference_name=task.task_reference_name, inputs=task.input_parameters))
         self._input_parameters = workflow_def.input_parameters
         self._output_parameters = workflow_def.output_parameters
