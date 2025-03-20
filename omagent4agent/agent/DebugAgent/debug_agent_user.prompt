@@ -7,4 +7,7 @@ Code: {{code}}
 Example input: {{example_input}}
 
 Output: Please return the corrected code and path with json format. 
+Please make sure the json is valid json and list. 
+```json
 [{"file_path": "path/to/file.py", "code": "corrected_code"}, {"file_path": "path/to/file2.py", "code": "corrected_code2"},....]
+```

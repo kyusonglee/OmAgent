@@ -92,6 +92,7 @@ class RuleBasedVerifier(BaseLLMBackend, BaseWorker):
                         input_prompt=f"Do you want to apply this fix for {worker_name}? (yes/no) "
                                      f"Or provide an alternative suggestion if any:"
                     )
+                    print ("user_response",user_response)
                     content = user_response['messages'][-1]['content']
                     for content_item in content:
                         if content_item['type'] == 'text':
@@ -164,6 +165,9 @@ class RuleBasedVerifier(BaseLLMBackend, BaseWorker):
         task = tasks.get(worker_name)
         #if not task:
         #    return {"is_correct": False, "error_message": "Task not found in workflow."}
+        print ("task",task)
+        if not task:
+            return {"is_correct": True, "error_message": ""}
         if "inputParameters" not in task:
             return {"is_correct": True, "error_message": ""}
         if task["inputParameters"]:

@@ -5,7 +5,7 @@ import glob2
 import difflib
 from pathlib import Path
 from typing import List
-
+import re
 from omagent_core.engine.worker.base import BaseWorker
 from omagent_core.models.llms.base import BaseLLMBackend, BaseLLM
 from omagent_core.models.llms.prompt import PromptTemplate
@@ -56,6 +56,15 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
                 print ("count 6666666666666",count)
                 if count >= 5:
                     return {"finished": False}
+    
+    def extract_file_paths(self, error_message):
+        pattern = r'File \"([^<>\"]+)\"'
+        paths =  [z for z in re.findall(pattern, error_message) if z.endswith(".py") and "generated_agents" in z ]
+        codes = {}
+        for path in paths:
+            with open(path, "r") as f:
+                codes[path] = f.read()
+        return codes
 
     def debug(self, folder_path, state):
         error_message = state.get("error_message", "")
@@ -67,8 +76,11 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
         code_by_file, full_code = self.load_agent_code(folder_path)
 
         # Generate debugging suggestions using the LLM.
+        target_codes = self.extract_file_paths(traceback)
+        print ("target_codes 1111111111111",target_codes)
+        
         try:
-            suggestions = self.get_suggestions(traceback, error_message, workflow, full_code, example_input)
+            suggestions = self.get_suggestions(traceback, error_message, workflow, target_codes, example_input)
             print ("suggestions 4444444444444",suggestions)
         except Exception as e:
             logging.error(f"Error getting suggestions: {e}")
@@ -81,10 +93,12 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
                 print ("suggestion 5555555555555",suggestion)
                 suggestion = demjson3.decode(suggestion)
             file_path = suggestion.get("file_path")
-            new_code = suggestion.get("code")
-            if file_path not in code_by_file:
+            if not os.path.exists(file_path):
+                file_path = os.path.join(folder_path, file_path)
+            if not os.path.exists(file_path):
                 logging.warning(f"Suggestion provided for unknown file: {file_path}")
                 continue
+            new_code = suggestion.get("code")
             try:
                 with open(file_path, "w") as f:
                     f.write(new_code.replace("<tag>", "{{").replace("</tag>", "}}"))

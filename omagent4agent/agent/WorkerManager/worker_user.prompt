@@ -327,7 +327,14 @@ class ExampleVLM(BaseWorker, BaseLLMBackend):
 - Please define the prompt to define the tool for example, if you want to use OD, please use VLM to define system as "you are object detector.." in user prompt, define the output format.
 In the PromptTemplate.from_template, you need to add "<tag>image</tag>" in the user prompt and add "image" in the input parameters of self.simple_infer.
 
-- 
+- Do not assign the stm value like dictionary of dictionary like below:
+self.stm(self.workflow_instance_id)["image_cache"]["<image_0>"] = image
+it should be just single key and value like below:
+self.stm(self.workflow_instance_id)["image_cache"] = image
+If you need to assign the value to the dictionary, please use the following format:
+self.stm(self.workflow_instance_id)["image_cache"] = {"<image_0>": image}
+
+- Do not add self.output_parser.parse(content) in the code. self.output_parse will be applied in parent class. 
 
 Previous codes (Please use the previous codes to implement the worker like how to set and use stm and input and output. If there is no previous codes, please implement the worker from scratch.. ):
 {{previous_codes}}

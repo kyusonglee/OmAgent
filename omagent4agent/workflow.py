@@ -92,6 +92,7 @@ class OmAgent4Agent(ConductorWorkflow):
         self.execute_and_debug_task = simple_task(
             task_reference_name="execute_and_debug_task",
             task_def_name=DebugAgent,
+            inputs={"folder_path": None, "example_inputs": None}
         )
 
         self.workflow_loop_task = DoWhileTask(
