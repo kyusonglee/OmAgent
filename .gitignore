@@ -158,3 +158,5 @@ video_cache/
 
 # JSON files
 *.json
+!mcp.json
+import os 

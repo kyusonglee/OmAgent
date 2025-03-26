@@ -1,3 +1,4 @@
+import os
 os.environ["OMAGENT_MODE"] = "lite"
 from typing import List
 from pydantic import Field
@@ -7,7 +8,6 @@ from omagent_core.models.llms.prompt import PromptTemplate
 from omagent_core.models.llms.prompt.parser import *
 from PIL import Image
 from omagent_core.utils.container import container
-import os 
 from omagent_core.memories.stms.stm_sharedMem import SharedMemSTM
 from omagent_core.utils.registry import registry
 from pathlib import Path
