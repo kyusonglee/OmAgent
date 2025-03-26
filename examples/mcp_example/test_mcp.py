@@ -40,7 +40,7 @@ class LLMTest(BaseLLMBackend):
         }
     tool_manager: ToolManager ={
         "llm": llm, 
-        "tools": ["Calculator"]
+        "tools": []
     }
     #output_parser: DictParser = DictParser()
 
