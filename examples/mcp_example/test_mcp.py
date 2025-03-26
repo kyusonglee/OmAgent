@@ -31,9 +31,9 @@ class LLMTest(BaseLLMBackend):
     )
     llm: OpenaiGPTLLM ={
         "name": "OpenaiGPTLLM", 
-        "model_id": "gpt-4o-mini", # "Qwen2.5-VL-3B-Instruct", 
+        "model_id": "gpt-4o-mini", 
         "api_key": os.getenv("custom_openai_key"), 
-        "endpoint": "https://api.openai.com/v1",    #"http://67.168.56.110:8000/v1",
+        "endpoint": "https://api.openai.com/v1",   
         "vision": False,
         "response_format": "text",
         "use_default_sys_prompt": False,
@@ -46,12 +46,7 @@ class LLMTest(BaseLLMBackend):
 
 llm_test = LLMTest(workflow_instance_id="temp")
 
-#img = read_image(input_source="https://cdn.britannica.com/36/123536-050-95CB0C6E/Variety-fruits-vegetables.jpg")
-#img = img.resize((1000, 1000))
-#chat_completion_res = llm_test.simple_infer(image=img)["choices"][0]["message"].get("content")
 tool_manager = llm_test.tool_manager
-#x = tool_manager.execute_task("classify image in the image at /Users/kyusonglee/Downloads/demo.jpeg and use yolov8n-cls.pt is_path True")    
 x = tool_manager.execute_task("command ls -l for the current directory")    
-#x = tool_manager.execute_task("Calculator 1121+212312")
 print(x)
 
