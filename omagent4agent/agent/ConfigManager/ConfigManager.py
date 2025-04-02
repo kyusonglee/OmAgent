@@ -41,7 +41,7 @@ class ConfigManager(BaseWorker):
                         f.write("llm: ${sub|vlm}\n")
                     if "llm:" in worker["code"] and not "image" in worker["code"]:
                         f.write("llm: ${sub|llm_text}\n")
-                        if "tool_manager:" in worker["code"]:
-                            f.write("tool_manager: ${sub|all_tools}\n") 
+                    if "tool_manager:" in worker["code"]:
+                        f.write("tool_manager: ${sub|all_tools}\n") 
             else:
                 print (f"worker config file {config_path} already exists")

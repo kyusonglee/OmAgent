@@ -12,6 +12,7 @@ from openai import Stream
 from pydantic import Field
 from collections.abc import Iterator
 from omagent_core.models.llms.prompt.parser import *
+from omagent_core.tool_system.manager import ToolManager
 
 CURRENT_PATH = Path(__file__).parents[0]
 
@@ -25,11 +26,18 @@ class Planner(BaseLLMBackend, BaseWorker):
     )
     llm: BaseLLM
     output_parser: StrParser = StrParser()
+    tool_manager: ToolManager
     
     def _run(self, initial_description: str, *args, **kwargs):
         print("Input description:", initial_description)
         # Generate the initial plan.
-        plan_text = self.simple_infer(prompt=initial_description)["choices"][0]["message"].get("content")
+        tool_schema = []
+        for name, tool in self.tool_manager.tools.items():            
+            tool_schema.append(str(tool.generate_schema()))
+
+        tool_schema_str = "\n".join(tool_schema)
+        self.stm(self.workflow_instance_id)["tool_schema"] = tool_schema_str
+        plan_text = self.simple_infer(prompt=initial_description, tool_schema=tool_schema_str)["choices"][0]["message"].get("content")
         self.callback.info(agent_id=self.workflow_instance_id, progress="Planner", message=plan_text)
         state = self.stm(self.workflow_instance_id)
         state["plan"] = plan_text

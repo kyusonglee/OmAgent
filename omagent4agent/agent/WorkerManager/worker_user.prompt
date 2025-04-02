@@ -136,15 +136,10 @@ First task of inputParameters's value must be "${workflow.input.{key_name}}".
 
 Set user_instruction based on the task.
 
-Coding Style:
-- Ensure all class and method names are descriptive.
-- Include type hints for method parameters and return types.
-- Add docstrings to classes and methods to describe their purpose and usage.
-
 Imports:
 - Ensure all necessary imports are included at the top of the file.
 - Group imports into standard library, third-party, and local imports.
-- Do not import any other unknown libraries or modules. If you need to use other libraries, implement them in another class or tools. 
+- If tool_schema has not include the tools that you need. Implement yourself and use it. 
 - The most important thing is that you must use the correct type of the input and output of each worker method. 
 
 
@@ -159,66 +154,27 @@ the the return of def _run can be empty many times. If there are SWITCH or DO_WH
 There are one available functions from omagent_core.utils.general import read_image
 Do not use other functions from omagent_core.utils.general.
 
-def read_image(input_source) -> Image.Image:
-    """
-    Read an image from a local path, URL, base64 string, PIL Image object, or Path object.
-
-    Args:
-        input_source (str or PIL.Image.Image or Path): The source of the image.
-            Can be a local file path, a URL, a base64 string, a PIL Image object, or a Path object.
-
-    Returns:
-        PIL.Image.Image: The image as a PIL Image object.
-
-    Raises:
-        ValueError: If the input source is invalid or the image cannot be read.
-    """
-    if isinstance(input_source, Image.Image):
-        return input_source
-
-    if isinstance(input_source, (str, Path)):
-        if isinstance(input_source, str) and input_source.startswith(("http://", "https://")):
-            # URL
-            try:
-                response = requests.get(input_source)
-                response.raise_for_status()
-                return Image.open(BytesIO(response.content))
-            except requests.RequestException as e:
-                raise ValueError(f"Failed to fetch image from URL: {e}")
-
-        elif os.path.isfile(str(input_source)):
-            # Local file path or Path object
-            try:
-                return Image.open(input_source)
-            except IOError as e:
-                raise ValueError(f"Failed to open local image file: {e}")
-
-        elif isinstance(input_source, str):
-            # Handle base64 string (optional: check if it looks like base64)
-            try:
-                header, encoded = input_source.split(",", 1) if "," in input_source else (None, input_source)
-                image_bytes = base64.b64decode(encoded)
-                
-                # Optional: Check image type
-                image_type = imghdr.what(None, h=image_bytes)
-                if image_type not in {"jpeg", "png", "bmp", "gif", "webp"}:
-                    raise ValueError(f"Unsupported image type: {image_type}")
-
-                return Image.open(BytesIO(image_bytes))
-            except (base64.binascii.Error, ValueError) as e:
-                raise ValueError(f"Failed to decode base64 image: {e}")
-
-    raise ValueError(
-        "Invalid input type. Must be a string (URL, file path, or base64), Path object, or PIL Image object."
-    )
-
 The worker code must be complete. Do not use Placeholder or Dummy function.
 
 Tools:
-- Search: Search the internet for information.
-result = tool_manager.execute("TavilyWebSearch", {"search_query": query, "topic": "general", "include_answer": True, "include_images": False, "include_raw_content": False, "days": 3, "max_results": 5})
+Here is the available tool_schema:
+{{tool_schema}}
+
+Based on the available tool_schema you can call like below:
+There are two ways to call tools:
+def execute(self, tool_name: str, args: Union[str, dict]):
+
+def execute_task(self, task, related_info="", function=None):
+
+If you know the tool name and args, you can use execute(tool_name=..., args=...)
+
+If you are not sure the tool name and args you can tall execute_task(....) like below;
+tool_call_result = tool_manager.execute_task("search about nvidia stock")
+
+tool_call_result will be mostly string. You can check the type and format as well in advance to process
 
 You must include tool_manager: ToolManager in the worker.
+
 example:
 ```python
 from omagent_core.tool_system.manager import ToolManager
@@ -229,8 +185,13 @@ class {worker_name}(BaseWorker):
     tool_manager: ToolManager
     def _run(self, *args, **kwargs):
         # Logic for {worker_description}
+        tool_call_result = tool_manager.execute_task("query for tool call")
+        #you can save tool_call_result in stm and use for later
+        #
+
         ....
 if you need to use other tools, you can use llm with prompt engineering using above SimpleVQA example.
+
 
 
 An example of decisionCases for SWITCH:
@@ -337,6 +298,27 @@ self.stm(self.workflow_instance_id)["image_cache"] = {"<image_0>": image}
 - Do NOT use self.output_parser.parse() in the code. 
 
 The resize of the image is 500x500 if it's bigger than 500x500.
+
+If DO_WHILE in the workflow has loopCondition like below:
+"loopCondition": "if ($.counter_task['current_index'] < 5) { true; } else { false; }",
+the taskReferenceName counter_task, def _run in CounterIncrementer should return {"current_index": ...} 
+
+{
+            "name": "processing_loop",
+            "taskReferenceName": "processing_loop",
+            "type": "DO_WHILE",
+            "loopCondition": "if ($.counter_task['current_index'] < 5) { true; } else { false; }",
+            "loopOver": [
+                 .........
+                {
+                    "name": "CounterIncrementer",
+                    "taskReferenceName": "counter_task",
+                    "inputParameters": {},
+                    "type": "SIMPLE"
+                }
+            ]
+        },
+
 
 Previous codes (Please use the previous codes to implement the worker like how to set and use stm and input and output. If there is no previous codes, please implement the worker from scratch.. ):
 {{previous_codes}}

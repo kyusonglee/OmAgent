@@ -33,6 +33,7 @@ class WorkerManager(BaseLLMBackend, BaseWorker):
         print ("ROOT_PATH",ROOT_PATH)  
         
         workflow_json = json.loads(self.stm(self.workflow_instance_id)["workflow_json"])
+        tool_schema = self.stm(self.workflow_instance_id)["tool_schema"]
         folder_path = self.stm(self.workflow_instance_id)["folder_path"]
         workflow_file_name = f"{workflow_json['name']}_workflow.json"
         workflow_path = os.path.join(folder_path, workflow_file_name)

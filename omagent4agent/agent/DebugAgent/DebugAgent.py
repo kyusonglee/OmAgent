@@ -73,6 +73,7 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
         traceback = state.get("traceback", "")
         workflow = state.get("workflow_json", {})
         example_input = state.get("example_input", {})
+        tool_schema = state.get("tool_schema", {})
 
         # Load all agent code (ignoring __init__.py).
         code_by_file, full_code = self.load_agent_code(folder_path)
@@ -85,7 +86,7 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
                 target_codes = {os.path.join(folder_path, "agent", state["class"], state["class"] + ".py"): open(os.path.join(folder_path, "agent", state["class"], state["class"] + ".py"), "r").read()}
         try:            
             print ("target_codes 2222222222222",target_codes)
-            suggestions = self.get_suggestions(traceback, error_message, workflow, target_codes, example_input)
+            suggestions = self.get_suggestions(traceback, error_message, workflow, target_codes, example_input, tool_schema)
             print ("suggestions 4444444444444",suggestions)
         except Exception as e:
             logging.error(f"Error getting suggestions: {e}")
@@ -137,7 +138,7 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
                 logging.error(f"Error reading {file_path}: {e}")
         return code_by_file, full_code
 
-    def get_suggestions(self, traceback: str, error_message: str, workflow: dict, code: str, example_input: dict):
+    def get_suggestions(self, traceback: str, error_message: str, workflow: dict, code: str, example_input: dict, tool_schema: dict):
         """
         Uses the LLM to generate debugging suggestions based on the error details.
 
@@ -153,7 +154,8 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
             error_message=error_message,
             workflow=workflow,
             code=code,
-            input=example_input
+            input=example_input,
+            tool_schema=tool_schema
         )
         print (suggestions_response)
         suggestions_content = suggestions_response["choices"][0]["message"].get("content")
