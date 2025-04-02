@@ -334,7 +334,9 @@ self.stm(self.workflow_instance_id)["image_cache"] = image
 If you need to assign the value to the dictionary, please use the following format:
 self.stm(self.workflow_instance_id)["image_cache"] = {"<image_0>": image}
 
-- Do not add self.output_parser.parse(content) in the code. self.output_parse will be applied in parent class. 
+- Do NOT use self.output_parser.parse() in the code. 
+
+The resize of the image is 500x500 if it's bigger than 500x500.
 
 Previous codes (Please use the previous codes to implement the worker like how to set and use stm and input and output. If there is no previous codes, please implement the worker from scratch.. ):
 {{previous_codes}}

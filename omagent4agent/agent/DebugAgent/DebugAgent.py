@@ -13,9 +13,11 @@ from omagent_core.utils.logger import logging
 from omagent_core.utils.registry import registry
 from pydantic import Field
 from omagent_core.models.llms.prompt.parser import *
-import json5
 import demjson3
 import traceback
+from omagent_core.models.llms.schemas import Message
+
+
 CURRENT_PATH = Path(__file__).parent
 
 
@@ -78,8 +80,11 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
         # Generate debugging suggestions using the LLM.
         target_codes = self.extract_file_paths(traceback)
         print ("target_codes 1111111111111",target_codes)
-        
-        try:
+        if target_codes == {}:
+            if os.path.exists(os.path.join(folder_path, "agent", state["class"], state["class"] + ".py")):
+                target_codes = {os.path.join(folder_path, "agent", state["class"], state["class"] + ".py"): open(os.path.join(folder_path, "agent", state["class"], state["class"] + ".py"), "r").read()}
+        try:            
+            print ("target_codes 2222222222222",target_codes)
             suggestions = self.get_suggestions(traceback, error_message, workflow, target_codes, example_input)
             print ("suggestions 4444444444444",suggestions)
         except Exception as e:
@@ -301,3 +306,33 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
             state["workflow_json"] = workflow_json
             os.environ["OMAGENT_MODE"] = mode
             return {"outputs": output, "error": None, "traceback": None, "has_error": False, "status": "success"}
+
+    
+    def dynamic_json_fixs(
+        self,
+        broken_json,
+        error_message: str = None,
+    ):       
+        messages = [
+            {
+                "role": "user",
+                "content": "\n".join(
+                    [
+                        "Your json string is broken",
+                        "--- Error ---",
+                        error_message,
+                        "Your task is to fix all errors exist in the Broken Json String to make the json validate.",
+                        "--- Notice ---",
+                        "- You need to carefully check the json string and fix the errors or adding missing value in it.",
+                        "- Do not give your own opinion or imaging new info or delete exisiting info!",
+                        "--- Broken Json String ---",
+                        broken_json,
+                        "Return the fixed json string.",
+                    ]
+                ),
+            },
+        ]
+        fix_res = self.llm.generate(
+            records=[Message(**item) for item in messages], tool_choice=function_schema
+        )        
+        return fix_res["choices"][0]["message"]["content"]
