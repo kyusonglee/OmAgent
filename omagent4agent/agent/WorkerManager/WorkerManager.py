@@ -47,7 +47,19 @@ class WorkerManager(BaseLLMBackend, BaseWorker):
         workers_section = workflow_json["description"]
         Dic_worker = {}
         for w in workflow_json["tasks"]:
-            Dic_worker[w["name"]] = w
+            if w["type"] == "SWITCH":
+                for case in w["decisionCases"]:
+                    case_data = w["decisionCases"][case]
+                    if isinstance(case_data, list):
+                        for c in case_data:
+                            Dic_worker[c["name"]] = c
+                    else:
+                        Dic_worker[case_data["name"]] = case_data
+            elif w["type"] == "DO_WHILE":
+                for c in w["loopOver"]:
+                    Dic_worker[c["name"]] = c
+            else:
+                Dic_worker[w["name"]] = w
 
         generated_workers = {"workers": [], "name":workflow_name, "workflow_path": workflow_path}
         codes = []
