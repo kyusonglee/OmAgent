@@ -20,7 +20,10 @@ class TestInput(BaseWorker):
         folders = {}
         for i, agent in enumerate(glob2.glob(os.path.join(ROOT_PATH, "generated_agents", "**","*.json"))):
             with open(agent, "r") as f:
-                agent_json = json.load(f)   
+                try:
+                    agent_json = json.load(f)   
+                except:
+                    continue
                 
                 keys = agent_json["tasks"][0]["inputParameters"].keys()
                 _id = agent.split("/")[-2]       
