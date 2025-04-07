@@ -106,10 +106,11 @@ class WorkerManager(BaseLLMBackend, BaseWorker):
             else:
                 tasks[task["name"]] = task
         task = tasks.get(worker_name)
+        print (worker_name, task)
         if not task:
-            return []
+            return "def _run(self, *args, **kwargs):", "No input parameters. you need to set def _run(self, *args, **kwargs): without any additional parameters"
         if "inputParameters" not in task:
-            return []
+            return "def _run(self, *args, **kwargs):", "No input parameters. you need to set def _run(self, *args, **kwargs): without any additional parameters"
         input_parameters = list(task["inputParameters"].keys())
 
         if len(input_parameters) == 0:
