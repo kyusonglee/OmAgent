@@ -33,7 +33,7 @@ class WorkerManager(BaseLLMBackend, BaseWorker):
         print ("ROOT_PATH",ROOT_PATH)  
         
         workflow_json = json.loads(self.stm(self.workflow_instance_id)["workflow_json"])
-        tool_schema = self.stm(self.workflow_instance_id)["tool_schema"]
+        tool_schema =self.stm(self.workflow_instance_id)["tool_schema"]
         folder_path = self.stm(self.workflow_instance_id)["folder_path"]
         workflow_file_name = f"{workflow_json['name']}_workflow.json"
         workflow_path = os.path.join(folder_path, workflow_file_name)
@@ -45,10 +45,22 @@ class WorkerManager(BaseLLMBackend, BaseWorker):
         print ("workflow_path",workflow_path)
         workflow_name = workflow_json["name"]
         workers_section = workflow_json["description"]
+        Dic_worker = {}
+        for w in workflow_json["tasks"]:
+            Dic_worker[w["name"]] = w
+
         generated_workers = {"workers": [], "name":workflow_name, "workflow_path": workflow_path}
         codes = []
+        total_input_parameters = {}
+        total_output_parameters = {}
         for worker in workers_section:   
-            code = self.simple_infer(workflow_name=worker["Worker_Name"], worker_description=worker["Role"], workflow=workflow_json, previous_codes="\n".join(codes))["choices"][0]["message"].get("content")
+            input_parameters, input_parameters_str = self.get_input_parameters(worker["Worker_Name"], workflow_json)
+            output_parameters, output_parameters_str = self.get_output_parameters(worker["Worker_Name"], workflow_json)
+        
+            total_input_parameters[worker["Worker_Name"]] = input_parameters_str        
+            total_output_parameters[worker["Worker_Name"]] = output_parameters_str
+            self.callback.info(self.workflow_instance_id, progress=worker["Worker_Name"]+" generating...", message= worker["Role"]+"\n"+json.dumps(Dic_worker[worker["Worker_Name"]], indent=2)+"\n"+input_parameters+"\n    ....\n    "+output_parameters)
+            code = self.simple_infer(input_parameters=input_parameters_str, output_parameters=output_parameters_str, tool_schema=tool_schema,workflow_name=worker["Worker_Name"], worker_description=worker["Role"], workflow=workflow_json, previous_codes="\n".join(codes))["choices"][0]["message"].get("content")
             code = self.parse_code(code)
             codes.append("# worker name: "+worker["Worker_Name"]+"\n"+code)
             worker_dir = os.path.join(folder_path, 'agent', worker["Worker_Name"])
@@ -58,9 +70,12 @@ class WorkerManager(BaseLLMBackend, BaseWorker):
                 f.write(code)
             print ("worker_file_path",worker_file_path)
             print ("code",code)
-            self.callback.info(self.workflow_instance_id, progress=worker_file_path, message=code)
+            self.callback.info(self.workflow_instance_id, progress=worker_file_path.split("/")[-1], message=code)
             generated_workers["workers"].append({"worker_name": worker['Worker_Name'], "worker_file_path": worker_file_path, "code": code })
         
+        self.stm(self.workflow_instance_id)["input_parameters"] = total_input_parameters
+        self.stm(self.workflow_instance_id)["output_parameters"] = total_output_parameters
+
         agents_dir = os.path.join(folder_path, "agent")
         for root, dirs, files in os.walk(agents_dir):
             for d in dirs:
@@ -72,10 +87,69 @@ class WorkerManager(BaseLLMBackend, BaseWorker):
                     print(f"Ensured sub-package: {init_file}")
         self.callback.info(self.workflow_instance_id, progress="WORKER MANAGER", message="********ALL WORKERS GENERATED********")
         self.stm(self.workflow_instance_id)["generated_workers"] = generated_workers
+    
+    def get_input_parameters(self, worker_name, workflow_json):
+        tasks = {}
+        for task in workflow_json["tasks"]:        
+            if task["type"] == "SWITCH":
+                for case in task["decisionCases"]:
+                    case_data = task["decisionCases"][case]
+                    if isinstance(case_data, list):
+                        for c in case_data:
+                            tasks[c["name"]] = c
+                    else:
+                        c = case_data
+                        tasks[c["name"]] = c
+            elif task["type"] == "DO_WHILE":
+                for c in task["loopOver"]:
+                    tasks[c["name"]] = c
+            else:
+                tasks[task["name"]] = task
+        task = tasks.get(worker_name)
+        if not task:
+            return []
+        if "inputParameters" not in task:
+            return []
+        input_parameters = list(task["inputParameters"].keys())
+
+        if len(input_parameters) == 0:
+            return "def _run(self, *args, **kwargs):", "No input parameters. you need to set def _run(self, *args, **kwargs): without any additional parameters"
+        else:
+            return "def _run(self, "+", ".join(input_parameters)+", *args, **kwargs):", "The input parameters are: "+", ".join(input_parameters)+". You need to set def _run(self, "+", ".join(input_parameters)+", *args, **kwargs):"
+
+    def get_output_parameters(self, worker_name, workflow_json):
+        match = re.findall(r'\${(.*?)\.output\.(.*?)}', str(workflow_json))
+        class_input_params = {}
+        for m in match:            
+            if not m[0] in class_input_params:
+                class_input_params[m[0]] = []
+            class_input_params[m[0]].append(m[1])
+            
+                
+        match = re.findall(r"\$\.(\w+)\['(\w+)'\]", str(workflow_json))
+        for m in match:         
+            if not m[0] in class_input_params:
+                class_input_params[m[0]] = []
+            class_input_params[m[0]].append(m[1])
         
+        for w in workflow_json["tasks"]:
+            if w["name"] == worker_name:
+                if w["taskReferenceName"] in class_input_params:
+                    return_keys = class_input_params[w["taskReferenceName"]]
+                    keys = {}
+                    for key in return_keys:
+                        keys[key] = "..."
+                    return "return "+", ".join(class_input_params[w["taskReferenceName"]])+",", "the output return should be "+", ".join(class_input_params[w["taskReferenceName"]])+"\nreturn should be a dictionary with the following keys: "+json.dumps(keys)
+        return "return None", "No output parameters. no return any value"
+        
+
     def parse_code(self, code: str):
         if "```python" in code:
             code = code.split("```python")[1].split("```")[0]
         code = code.replace("<tag>", "{{")
         code = code.replace("</tag>", "}}")
+        
         return code
+
+
+    

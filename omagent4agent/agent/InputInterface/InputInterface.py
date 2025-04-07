@@ -34,6 +34,7 @@ class InputInterface(BaseWorker):
         
    
         folder_path = "generated_agents/"+str(uuid.uuid4())
+        self.callback.info(self.workflow_instance_id, progress="AGENT ID", message=folder_path.split("/")[-1])
         is_valid_json = False
         while not is_valid_json:
             input = self.input.read_input(workflow_instance_id=self.workflow_instance_id, input_prompt="Give me an example input for the agent.(e.g., {'image_path': '/path/to/image.jpg'})")

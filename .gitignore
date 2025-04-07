@@ -155,3 +155,4 @@ video_cache/
 
 # vscode
 .vscode
+*copy*

@@ -79,8 +79,7 @@ class MCPClient:
             response = await self.session.call_tool(tool_name, arguments=kwargs)     
                    
             if hasattr(response, 'content') and response.content:
-                print (len(response.content))
-
+                #return response.content[0].dict()
                 if hasattr(response.content[0], 'text'):
                     return response.content[0].text
                 else:

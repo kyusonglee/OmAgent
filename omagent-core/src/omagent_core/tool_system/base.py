@@ -83,7 +83,6 @@ class ArgSchema(BaseModel):
             "int": "integer",
             "float": "number",
             "bool": "boolean",
-            "dict": "dict",
         }
         for name, value in args.items():
             if name not in self.model_dump():
@@ -93,9 +92,7 @@ class ArgSchema(BaseModel):
                     )
                 )
                 continue
-            if self.model_dump()[name]["type"] == "any":
-                new_args[name] = value
-            elif name_mapping[type(value).__name__] == self.model_dump()[name]["type"]:
+            if name_mapping[type(value).__name__] == self.model_dump()[name]["type"]:
                 if (
                     self.model_dump()[name]["enum"]
                     and value not in self.model_dump()[name]["enum"]
@@ -145,8 +142,6 @@ class ArgSchema(BaseModel):
                                 name, type(value), value
                             )
                         )
-            elif self.model_dump()[name]["type"] == "dict":
-                new_args[name] = value
             else:
                 raise ValueError(
                     "Parameter {} type expect one of string, integer, number and boolean, but got a {} {}".format(

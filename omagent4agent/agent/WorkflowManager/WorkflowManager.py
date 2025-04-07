@@ -29,17 +29,24 @@ class WorkflowManager(BaseLLMBackend, BaseWorker):
     def _run(self, *args, **kwargs):        
         initial_description = self.stm(self.workflow_instance_id)["initial_description"]
         example_input = self.stm(self.workflow_instance_id)["example_input"]
-        if type(example_input) == str:
-            print (example_input)
+        if type(example_input) == str:            
+            example_input = example_input.replace('“','"').replace('”','"')
             example_input = json.loads(example_input)
 
         keys = example_input.keys()
+        input_parameters = {}
+        for k in keys:
+            input_parameters[k] = "${workflow.input."+k+"}"
+
         plan = self.stm(self.workflow_instance_id)["plan"]       
-       
-        workflow_json = self.simple_infer(content=initial_description, plan=plan, input=example_input, input_keys=keys)["choices"][0]["message"].get("content")
+        print (json.dumps({"inputParameters":input_parameters}))
+        workflow_json = self.simple_infer(content=initial_description, plan=plan, input=json.dumps({"inputParameters":input_parameters}))["choices"][0]["message"].get("content")
         workflow_json = self.parse(workflow_json)
-        self.callback.info(self.workflow_instance_id, progress="WorkflowManager", message=workflow_json)
+
+        workflow = json.loads(workflow_json)
+        self.callback.info(self.workflow_instance_id, progress="Workflow", message=json.dumps({"tasks":workflow["tasks"],"name":workflow["name"]}, indent=2))
         self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json
+        self.callback.info(self.workflow_instance_id, progress="Reasoning...", message=workflow["reasoning"])
         return workflow_json
 
     def parse(self, workflow_json):

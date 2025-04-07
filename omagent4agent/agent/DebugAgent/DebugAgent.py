@@ -28,7 +28,7 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
     It loops until the workflow executes with no errors or the same error is seen three times.
     """
     prompts: List[PromptTemplate] = Field(default=[
-        PromptTemplate.from_file(CURRENT_PATH.joinpath("debug_agent_system.prompt"), role="system"),
+        PromptTemplate.from_file(CURRENT_PATH.joinpath("../WorkerManager/worker_user.prompt"), role="system"),
         PromptTemplate.from_file(CURRENT_PATH.joinpath("debug_agent_user.prompt"), role="user"),
     ])
     llm: BaseLLM
@@ -148,14 +148,17 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
         """
         print ("traceback 1111111111111",traceback)
         print ("error_message 1111111111111",error_message)    
-        
+        input_parameters = self.stm(self.workflow_instance_id)["input_parameters"]
+        output_parameters = self.stm(self.workflow_instance_id)["output_parameters"]
         suggestions_response = self.simple_infer(
             traceback=traceback,
             error_message=error_message,
             workflow=workflow,
             code=code,
             input=example_input,
-            tool_schema=tool_schema
+            tool_schema=tool_schema,
+            input_parameters=input_parameters,
+            output_parameters=output_parameters
         )
         print (suggestions_response)
         suggestions_content = suggestions_response["choices"][0]["message"].get("content")
@@ -309,32 +312,3 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
             os.environ["OMAGENT_MODE"] = mode
             return {"outputs": output, "error": None, "traceback": None, "has_error": False, "status": "success"}
 
-    
-    def dynamic_json_fixs(
-        self,
-        broken_json,
-        error_message: str = None,
-    ):       
-        messages = [
-            {
-                "role": "user",
-                "content": "\n".join(
-                    [
-                        "Your json string is broken",
-                        "--- Error ---",
-                        error_message,
-                        "Your task is to fix all errors exist in the Broken Json String to make the json validate.",
-                        "--- Notice ---",
-                        "- You need to carefully check the json string and fix the errors or adding missing value in it.",
-                        "- Do not give your own opinion or imaging new info or delete exisiting info!",
-                        "--- Broken Json String ---",
-                        broken_json,
-                        "Return the fixed json string.",
-                    ]
-                ),
-            },
-        ]
-        fix_res = self.llm.generate(
-            records=[Message(**item) for item in messages], tool_choice=function_schema
-        )        
-        return fix_res["choices"][0]["message"]["content"]

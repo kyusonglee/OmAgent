@@ -1,198 +1,106 @@
-Worker Implementation:
-You need to implement a worker named '{{workflow_name}}'.
-You are given a plan by a planning agent that solves a vision problem posed by the user.  Your job is to organize the code so that it can be easily called by the user to solve the task.
+You are tasked with creating a worker named "{{workflow_name}}" for a multi-agent workflow.
 
-Description: {{worker_description}}
-Workflow json: {{workflow}}
+# OVERVIEW
+Worker Role: {{worker_description}}
+Workflow JSON: {{workflow}}
 
-Requirements:
-1. Define a class named '{{workflow_name}}' that inherits from 'BaseWorker'.
-2. Implement a '_run' method that performs the main logic of the worker.
-3. Save the implementation in a Python file named '{worker_name}.py' in the appropriate directory.
+# CODE REQUIREMENTS
+1. Import with: `from omagent_core.omagent4agent import *`, it contains classes ["BaseWorker", "BaseLLMBackend", "OpenaiGPTLLM", "registry", "ToolManager",  "logging", "PromptTemplate", "Field", "List" ] 
+2. Define a class named `{{workflow_name}}` 
+3. Implement a `_run` method with appropriate parameters
+4. Include necessary components: OpenaiGPTLLM, ToolManager, prompts (if needed)
 
-Example Code1:
-from omagent_core.engine.worker.base import BaseWorker
-from omagent_core.utils.registry import registry
-
-@registry.register_worker()
-class {worker_name}(BaseWorker):
-    def _run(self, *args, **kwargs):
-        # Logic for {worker_description}
-        ....
-
-Example Code2 (if the worker has input parameters):
+# BASE TEMPLATE
 ```python
-from omagent_core.engine.worker.base import BaseWorker
-from omagent_core.utils.registry import registry
+from omagent_core.omagent4agent import *
 
 @registry.register_worker()
-class {worker_name}(BaseWorker):
-    def _run(self, param1, param2, *args, **kwargs):
-        # Logic for {worker_description}
-        ....
-
-
-The return of worker only use decisionCases for SWITCH and loopCondition for DO_WHILE. Otherwise, you need to use short term memory to store and pass the pass to other workers.
-This is an example of using short term memory to store values. 
-self.stm(self.workflow_instance_id)["user_instruction"] = user_instruction
-
-This is an example of using short term memory to load values.
-user_instruction = self.stm(self.workflow_instance_id)["user_instruction"]
-
-Here is an complete simple example of using short term memory to SimpleVLM including worker and workflow json:
-from pathlib import Path
-from omagent_core.engine.worker.base import BaseWorker
-from omagent_core.utils.general import read_image
-from omagent_core.utils.logger import logging
-from omagent_core.utils.registry import registry
-@registry.register_worker()
-class InputInterface(BaseWorker):
-    def _run(self, inputs, *args, **kwargs):
-        img = read_image(input_source=inputs["image"])
-        image_cache = {"<image_0>": img}
-        self.stm(self.workflow_instance_id)["image_cache"] = image_cache
-        self.stm(self.workflow_instance_id)["user_instruction"] = input["user_instruction"]
-
-from omagent_core.engine.worker.base import BaseWorker
-from omagent_core.models.llms.base import BaseLLMBackend
-from omagent_core.models.llms.openai_gpt import OpenaiGPTLLM
-from omagent_core.models.llms.prompt.parser import DictParser
-from omagent_core.models.llms.schemas import Content, Message
-from omagent_core.utils.container import container
-from omagent_core.utils.general import encode_image
-from omagent_core.utils.registry import registry
-
-@registry.register_worker()
-class SimpleVLM(BaseWorker, BaseLLMBackend):
+class {worker_name}(BaseWorker, BaseLLMBackend):
+    llm: OpenaiGPTLLM
+    tool_manager: ToolManager 
     prompts: List[PromptTemplate] = Field(
         default=[
-            PromptTemplate.from_template("You are a helpful assistant. Please output the result in JSON format.", role="system"),
-            PromptTemplate.from_template("<tag>user_instruction</tag>, <tag>image</tag>", role="user"),
+            PromptTemplate.from_template("System prompt here", role="system"),
+            PromptTemplate.from_template("User prompt here <tag>variable</tage>", role="user"),
         ]
     )
-    llm: OpenaiGPTLLM
-    output_parser: DictParser = DictParser()
-    def _run(self, *args, **kwargs):        
-        user_instruction = self.stm(self.workflow_instance_id)["user_instruction"]
-        image_url = self.stm(self.workflow_instance_id)["image_cache"]["<image_0>"]
-        img = read_image(input_source=image_url)
-        chat_completion_res = self.simple_infer(user_instruction=user_instruction, image=img)["choices"][0]["message"].get(
-            "content"
-        )
-        return {"last_output": chat_completion_res}
-Workflow json:
-{
-    "name": "step1_simpleVQA",
-    "tasks": [
-        {
-            "name": "InputInterface",
-            "taskReferenceName": "input_task",
-            "inputParameters": {
-                "inputs": "${workflow.input.inputs}"
-            },
-            "type": "SIMPLE",
-            "taskDefinition": {}
-        },
-        {
-            "name": "SimpleVLM",
-            "taskReferenceName": "simple_vlm",
-            "inputParameters": {},
-            "type": "SIMPLE",
-            "taskDefinition": {}
-        }
-    ],
-    "inputParameters": [],
-    "outputParameters": {},
-    "failureWorkflow": "",
-    "schemaVersion": 2,
-    "workflowStatusListenerEnabled": false,
-    "ownerEmail": "default@omagent.ai",
-    "timeoutSeconds": 60,
-    "variables": {},
-    "inputTemplate": {}
-}
-
-The keys of inputParameters must be matched with the function parameters.
-{
-    "name": "InputInterface",
-    "taskReferenceName": "input_task",
-    "inputParameters": {
-        "inputs": "${workflow.input.inputs}"
-    },
-    "type": "SIMPLE",
-    "taskDefinition": {}
-},
-it should be like below:
-from omagent_core.engine.worker.base import BaseWorker
-from omagent_core.utils.registry import registry
-
-@registry.register_worker()
-class InputInterface(BaseWorker):
-    def _run(self, inputs, *args, **kwargs):
-        # Logic for {worker_description}
-        ....
-First task of inputParameters's value must be "${workflow.input.{key_name}}".
     
+    def _run(self, param1, param2, *args, **kwargs):
+        # Worker code here
+        ...
+```
 
-Set user_instruction based on the task.
-
-Imports:
-- Ensure all necessary imports are included at the top of the file.
-- Group imports into standard library, third-party, and local imports.
-- If tool_schema has not include the tools that you need. Implement yourself and use it. 
-- The most important thing is that you must use the correct type of the input and output of each worker method. 
-
-
-Now, implement the worker using the guidelines and example code provided. Only return the code, do not include any other text. The functions of input and output must be matched with workflow.
-When handling the image input, it should support all possible image formats such as image url, image path, image base64, etc.
-Please carefully design the input and output parameters based on the workflow. The input parameters must be matched with the workflow input parameters. Please check again and again if all the input parameters are matched with the workflow input parameters.
-If you need to process the image, if the image is url, you can use the url directly to call the api. If it's local image, you can convert the image to base64 to call the api.
-
-the the return of def _run can be empty many times. If there are SWITCH or DO_WHILE, the return of def _run must be dictionary for decisionCases or loopCondition. The last worker in the workflow must return the result.
+# INPUT parameters and OUTPUT Returns
+{{input_parameters}}
+{{output_parameters}}
 
 
-There are one available functions from omagent_core.utils.general import read_image
-Do not use other functions from omagent_core.utils.general.
+# DATA HANDLING
+## Short Term Memory (STM)
+- Store: `self.stm(self.workflow_instance_id)["key"] = value`
+- Load: `value = self.stm(self.workflow_instance_id)["key"]`
+- For dictionaries: `self.stm(self.workflow_instance_id)["image_cache"] = {"<image_0>": image}`
+- DON'T use multi step dictionary: `self.stm(self.workflow_instance_id)["image_cache"]["<image_0>"] = image`
 
-The worker code must be complete. Do not use Placeholder or Dummy function.
+## Function Returns
+- For SWITCH tasks: Return dictionary with decision case key (e.g., `return {"switch_case_value": "complex"}`)
+- For DO_WHILE loops: Return condition value (e.g., `return {"current_index": value}`)
+- For final worker: Return with `return {"last_output": result}`
 
-Tools:
-Here is the available tool_schema:
-{{tool_schema}}
+# TOOL USAGE
+Available tools: {{tool_schema}}
 
-Based on the available tool_schema you can call like below:
-There are two ways to call tools:
-def execute(self, tool_name: str, args: Union[str, dict]):
+Call tools with either:
+- `tool_call_result= self.tool_manager.execute(tool_name="tool_name", args=args_dict)`
+- `tool_call_result = self.tool_manager.execute_task("task description")`
 
-def execute_task(self, task, related_info="", function=None):
+tool_call_result will be mostly string. You need to check again with llm to the output information if needed.
 
-If you know the tool name and args, you can use execute(tool_name=..., args=...)
+For image processing, use: `from omagent_core.utils.general import read_image`
 
-If you are not sure the tool name and args you can tall execute_task(....) like below;
-tool_call_result = tool_manager.execute_task("search about nvidia stock")
-
-tool_call_result will be mostly string. You can check the type and format as well in advance to process
-
-You must include tool_manager: ToolManager in the worker.
-
-example:
+# VISION MODELS (VLM)
+Use VLM for image-related tasks:
 ```python
-from omagent_core.tool_system.manager import ToolManager
-from omagent_core.engine.worker.base import BaseWorker
-from omagent_core.utils.registry import registry
-@registry.register_worker()
-class {worker_name}(BaseWorker):
-    tool_manager: ToolManager
-    def _run(self, *args, **kwargs):
-        # Logic for {worker_description}
-        tool_call_result = tool_manager.execute_task("query for tool call")
-        #you can save tool_call_result in stm and use for later
-        #
+chat_completion_res = self.simple_infer(
+    user_instruction=instruction,
+    image=image
+)["choices"][0]["message"].get("content")
+```
 
-        ....
-if you need to use other tools, you can use llm with prompt engineering using above SimpleVQA example.
+In prompts, use `<tag>placeholder</tag>` format (not `{placeholder}`).
 
+# WORKFLOW TIPS
+- Match input parameters with workflow JSON
+- First task's inputParameters should use `${workflow.input.key_name}`
+- Print progress with `print(f"...")`
+- Include error handling
+- Properly implement SWITCH and DO_WHILE logic when present
 
+# EXAMPLES & REFERENCES
+Previous worker codes:
+```python
+{{previous_codes}}
+```
+
+# IMPORTANT
+- The keys of inputParameters must be matched with the function parameters.
+    {
+        ...
+        "inputParameters": {
+            "inputs": "${workflow.input.key_name}"
+        },
+        ...
+    },
+    it should be like below:
+    ```python
+    def _run(self, key_name, *args, **kwargs):        
+    ```
+
+First task of inputParameters's value must be "${workflow.input.{key_name}}".  
+
+- If there are SWITCH or DO_WHILE, the return of def _run must be dictionary for decisionCases or loopCondition. The last worker in the workflow must return for condition (e.g., return {"is_finished":True}).
+- The worker code must be complete. Do not use Placeholder or Dummy function.
+- if you need to use other tools, you can use llm with prompt engineering using above SimpleVQA example.
 
 An example of decisionCases for SWITCH:
  {
@@ -244,36 +152,25 @@ in object_detection worker, the function of _run return should be like below:
 return {"mouse_detected": ...}
 
 - Do not use kwargs.get() to get input parameters in the worker.
-
 - Use print to debug the informate values of the worker.
-
 - At the very last worker, please return the results with "last_output" key.
-
 - Please print to inform the user about the worker's progress and the output of LLM or VLM. Here is an example:
 print(f".....")
-
 - Please do not overwrite the image in the short term memory. Use the new key to store the image.
-
 - Please use VLM to solve the problem if the problem is about image. You can define the prompt based on the problem. 
 Example how to use VLM:
-from omagent_core.engine.worker.base import BaseWorker
-from omagent_core.models.llms.base import BaseLLMBackend
-from omagent_core.models.llms.openai_gpt import OpenaiGPTLLM
-from omagent_core.models.llms.prompt.parser import DictParser
-from omagent_core.models.llms.prompt.prompt import PromptTemplate
-from omagent_core.utils.registry import registry
-from pydantic import Field
+from omagent_core.omagent4agent import *
 
 @registry.register_worker()
 class ExampleVLM(BaseWorker, BaseLLMBackend):
     prompts: List[PromptTemplate] = Field(
         default=[
             PromptTemplate.from_template("You are a helpful assistant. Please output the result in JSON format.", role="system"),
-            PromptTemplate.from_template("<tag>user_instruction</tag>, example output: <tag>example_output</tag>, <tag>image</tag>", role="user"), 
+            PromptTemplate.from_template("<tag>user_instruction</tag>, example output: <tag>example_output</tag>, <tag>image</tag>", role="user"), # Please make sure you need to use '<tag>' '</tag>' instead of '{' and '}' for placeholder.
         ]
     )
     llm: OpenaiGPTLLM
-    output_parser: DictParser = DictParser()
+    tool_manager: ToolManager
     def _run(self, *args, **kwargs):        
         user_instruction = self.stm(self.workflow_instance_id)["user_instruction"]
         image_url = self.stm(self.workflow_instance_id)["image_cache"]["<image_0>"]

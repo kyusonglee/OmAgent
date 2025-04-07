@@ -4,4 +4,4 @@ Given the workflow json and the error message, please fix the workflow json.
 Error message:
 {{workflow_error_msg}}
 
-The return should be only the workflow json. 
+The return should be only the workflow json. completely regenerate

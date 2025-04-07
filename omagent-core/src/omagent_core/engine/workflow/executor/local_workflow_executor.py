@@ -35,7 +35,6 @@ class LocalWorkflowExecutor:
                     processed_inputs[key] = task_output
             else:
                 processed_inputs[key] = value
-        print ("processed_inputs:", processed_inputs)
         return processed_inputs
 
 
@@ -94,6 +93,7 @@ class LocalWorkflowExecutor:
                 
                 if 'loopCondition' in task or "loop_condition" in task:
                     should_continue = self.evaluate_loop_condition(task['loopCondition' if 'loopCondition' in task else "loop_condition"])            
+                    print ("should_continue:", should_continue)
                     if not should_continue:
                         break
                 else:
@@ -102,7 +102,7 @@ class LocalWorkflowExecutor:
                         break
                     
         elif task_type == 'SWITCH':
-            print (self.evaluate_input_parameters(task))
+            #print (self.evaluate_input_parameters(task))
             case_value = self.evaluate_input_parameters(task)['switchCaseValue']
             
             if not type(case_value) == str:

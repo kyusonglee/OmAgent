@@ -1,8 +1,4 @@
 llm: ${sub|llm_text}
-tools:
-  - name: ObjectDetection    
-    url: http://67.168.56.110:8005/inf_predict
-  - name: SuperResolution
-    api_url: http://67.168.56.110:8010/superres
+tools: 
   - name: TavilyWebSearch
     tavily_api_key: ${env|tavily_api_key, null}

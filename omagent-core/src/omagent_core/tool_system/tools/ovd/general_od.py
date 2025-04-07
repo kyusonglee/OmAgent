@@ -32,7 +32,7 @@ ARGSCHEMA = {
 }
 
 @registry.register_tool()
-class GeneralOD(BaseModelTool):
+class ObjectDetection(BaseModelTool):
     args_schema: ArgSchema = ArgSchema(**ARGSCHEMA)
 
     url: str = "http://localhost:8005/inf_predict"

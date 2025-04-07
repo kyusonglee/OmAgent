@@ -44,6 +44,7 @@ class Planner(BaseLLMBackend, BaseWorker):
         state["initial_description"] = initial_description
 
         # Enter a loop for user confirmation/suggestion.
+        """
         while True:
             user_response = self.input.read_input(
                 workflow_instance_id=self.workflow_instance_id,
@@ -74,6 +75,8 @@ class Planner(BaseLLMBackend, BaseWorker):
                 plan_text = self.simple_infer(prompt=new_prompt)["choices"][0]["message"].get("content")
                 self.callback.info(agent_id=self.workflow_instance_id, progress="Planner", message=plan_text)
                 state["plan"] = plan_text
+        """
         print("FinalPlan:", plan_text)
 
         return {"plan": plan_text}
+

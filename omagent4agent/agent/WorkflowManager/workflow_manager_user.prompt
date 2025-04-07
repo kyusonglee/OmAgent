@@ -268,16 +268,10 @@ An example of decisionCases for SWITCH:
 
 The worker name will be used as the name of class name in the codes later. Please think carefully and optimize the workflow. Each worker will process the task and return the result. If you need to detect the objects, one worker can detect many objects, so you can set ObjectDetector as worker name. 
 Now, generate the workers and workflow for the given task. Only output the JSON. description must be in the output for coding agents.
-The example input will be given as the following: {{input}} 
+
 
 First task must include the inputParameters like below:
-```json
-{
-    "inputParameters": {
-        "image_path": "${workflow.input.{{input_keys}}}"
-    }
-}
-```
+{{input}}
 
 
 Here is an complete simple example of using short term memory to VQA including worker and workflow json:
@@ -309,15 +303,6 @@ import ....
 
 @registry.register_worker()
 class SimpleVQA(BaseWorker, BaseLLMBackend):
-    """Simple Visual Question Answering processor that handles image-based questions.
-
-    This processor:
-    1. Takes user instruction and cached image from workflow context
-    2. Creates chat messages containing the text question and base64-encoded image
-    3. Sends messages to LLM to generate a response
-    4. Returns response and sends it via callback
-    """
-
     llm: OpenaiGPTLLM
 
     def _run(self, *args, **kwargs):
@@ -401,6 +386,10 @@ The initial inputParameters must be this format:
         "image_path": "${workflow.input.image_path}"
     }
 }
+
+- the key of inputParameters should be match with "${workflow.input.key}"
+-  no other additional text after } (e.g., "${workflow.input.stock} stock news analysis")
+
 ```        
 - image_path is very initial input. {"image_path": "..."}. It can be any key name but it must be matched with the example input.
 if the input is {"data": "..."}, the inputParameters must be {"data": "${workflow.input.data}"}.
@@ -420,3 +409,5 @@ Important:
                     "inputParameters": {},
                     "type": "SIMPLE"
                 },.....]
+
+- Worker_Name should only contains characters. 

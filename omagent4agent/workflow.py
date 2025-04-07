@@ -97,7 +97,8 @@ class OmAgent4Agent(ConductorWorkflow):
 
         self.workflow_loop_task = DoWhileTask(
             task_ref_name="workflow_loop_for_debug",
-            tasks=[self.worker_manager_task, self.rulebase_worker_verifier_task, self.config_manager_task, self.execute_and_debug_task],
+            #tasks=[self.worker_manager_task, self.rulebase_worker_verifier_task, self.config_manager_task, self.execute_and_debug_task],
+            tasks=[self.worker_manager_task, self.config_manager_task, self.execute_and_debug_task],
             termination_condition="if ($.execute_and_debug_task['finished'] == true){false;} else {true;} ",
             #termination_condition="if ($.execute_agent_task2['has_error'] == true){false;} else {true;} ",
         )

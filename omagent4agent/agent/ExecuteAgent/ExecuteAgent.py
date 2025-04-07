@@ -45,8 +45,8 @@ class ExecuteAgent(BaseWorker):
             try:
                 registry.import_module(os.path.join(target_folder, "agent"))
             except Exception as e:
-                print ("error 2222222222222",e)
-                print ("traceback 2222222222222",traceback.format_exc())
+                print ("error ",e)
+                print ("traceback ",traceback.format_exc())
                 self.stm(self.workflow_instance_id)["error_message"] = str(e)
                 self.stm(self.workflow_instance_id)["traceback"] = str(traceback.format_exc())
                 self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json
@@ -59,14 +59,14 @@ class ExecuteAgent(BaseWorker):
             workflow.load(workflow_path)
             print ("/".join(workflow_path.split("/")[:-1])+"/configs")
             self.callback.info(agent_id=self.workflow_instance_id, progress="EXECUTING", message="Loading workflow...")
-            print ("before 1111111111111")
+            print ("before")
             try:
                 client = ProgrammaticClient(
                     processor=workflow,
                     config_path="/".join(workflow_path.split("/")[:-1])+"/configs",
                 )
             except Exception as e:
-                print ("error 3333333333333",e)
+                print ("error",e)
                 self.stm(self.workflow_instance_id)["error_message"] = str(e)
                 self.stm(self.workflow_instance_id)["traceback"] = str(traceback.format_exc())
                 self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json
@@ -74,11 +74,9 @@ class ExecuteAgent(BaseWorker):
                 self.callback.info(agent_id=self.workflow_instance_id, progress="EXECUTE OUTPUT", message="Finished")
                 return {"outputs": None, "class": None, "error": str(e), "traceback": str(traceback.format_exc()), "has_error": True, "input":None}
 
-            print ("after 1111111111111")   
-
             self.stm(self.workflow_instance_id)["example_input"] = example_inputs
             output = client.start_processor_with_input(example_inputs)
-            print ("1111111111111",output)
+            print ("output",output)
             
             if output and "last_output" in output:
                 self.stm(self.workflow_instance_id)["error_message"] = "no error"

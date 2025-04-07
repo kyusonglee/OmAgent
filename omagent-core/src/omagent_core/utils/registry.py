@@ -51,8 +51,11 @@ class Registry:
                 #raise ValueError(
                 #    f"Module {name} [{self.mapping[category].get(name)}] already registered in category {category}. Please use a different class name."
                # )
-                print (f"Module {name} [{self.mapping[category].get(name)}] already registered in category {category}. Please use a different class name.")
+                del self.mapping[category][name]
+                #print (f"Module {name} [{self.mapping[category].get(name)}] already registered in category {category}. Please use a different class name.")
+            
             self.mapping.setdefault(category, {})[name] = module
+            #print (f"Module {name} registered in category {category}.")
             return module
 
         return wrap
@@ -96,10 +99,11 @@ class Registry:
         :param name: The name of the module to remove.
         :raises KeyError: If the module is not found.
         """
+
         try:
             if name in self.mapping[category]:
                 del self.mapping[category][name]
-                print(f"Module {name} unregistered from category {category}.")            
+                #print(f"Module {name} unregistered from category {category}.")            
         except KeyError:
             raise KeyError(f"Module {name} not found in category {category}")
 

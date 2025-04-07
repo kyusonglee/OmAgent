@@ -21,9 +21,17 @@ class WorkflowDebug(BaseLLMBackend, BaseWorker):
     )
     llm: BaseLLM
     def _run(self, *args, **kwargs):        
+        initial_description = self.stm(self.workflow_instance_id)["initial_description"]
+        example_input = self.stm(self.workflow_instance_id)["example_input"]
+        if type(example_input) == str:
+            print (example_input)
+            example_input = json.loads(example_input)
         workflow_json = self.stm(self.workflow_instance_id)["workflow_json"]       
         workflow_error_msg = self.stm(self.workflow_instance_id)["workflow_error_msg"]
-        workflow_json = self.simple_infer(workflow_json=workflow_json, workflow_error_msg=workflow_error_msg)["choices"][0]["message"].get("content")
+        plan = self.stm(self.workflow_instance_id)["plan"]       
+        keys = example_input.keys()
+
+        workflow_json = self.simple_infer(content=initial_description, plan=plan, input=example_input, input_keys=keys, workflow_json=workflow_json, workflow_error_msg=workflow_error_msg)["choices"][0]["message"].get("content")
 
         self.callback.info(self.workflow_instance_id, progress="WorkflowManager", message=workflow_json)
         self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json

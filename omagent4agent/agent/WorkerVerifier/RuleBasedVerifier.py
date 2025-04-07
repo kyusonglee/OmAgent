@@ -160,7 +160,8 @@ class RuleBasedVerifier(BaseLLMBackend, BaseWorker):
             elif task["type"] == "DO_WHILE":
                 for c in task["loopOver"]:
                     tasks[c["name"]] = c
-            tasks[task["name"]] = task
+            else:
+                tasks[task["name"]] = task
 
         task = tasks.get(worker_name)
         #if not task:
@@ -187,7 +188,16 @@ class RuleBasedVerifier(BaseLLMBackend, BaseWorker):
         match = re.findall(r'\${(.*?)\.output\.(.*?)}', str(workflow_json))
         workers_codes = {}
         workers_names = {}
-        print("match:", match)
+        class_input_params = {}
+        for m in match:            
+            class_input_params[m[0]] = m[1]
+        """
+        match = re.findall(r"\$\.(\w+)\['(\w+)'\]",str(workflow_json))
+        for m in match:            
+            class_input_params[m[0]] = m[1]
+        """
+        print ("class_input_params",class_input_params)
+
         if isinstance(workflow_json, str):
             workflow_json = json.loads(workflow_json)
         Dic = {}
@@ -211,19 +221,17 @@ class RuleBasedVerifier(BaseLLMBackend, BaseWorker):
             except Exception:
                 pass
 
-        if match:
-            for x in match:
-                ref_name = x[0]
-                output_param = x[1]
-                out_return = self.get_returns(workers_codes[ref_name])
-                print(out_return)
-                print(output_param)
-                if set(output_param) == set(out_return):
-                    continue
-                else:
-                    if workers_names.get(ref_name) not in results:
-                        results[workers_names.get(ref_name)] = []
-                    results[workers_names.get(ref_name)].append({"is_correct": False, "error_message": "The output parameter is not in the return statement."})
+        for ref_name in class_input_params:                
+            output_param = class_input_params[ref_name]
+            print ("output params in workflow",output_param)
+            out_return = self.get_returns(workers_codes[ref_name])
+            print ("output params in code",out_return)
+            if set(output_param) == set(out_return):
+                continue
+            else:
+                if workers_names.get(ref_name) not in results:
+                    results[workers_names.get(ref_name)] = []
+                results[workers_names.get(ref_name)].append({"is_correct": False, "error_message": "The output parameter is not in the return statement."})
         print(results)
         return results
 
