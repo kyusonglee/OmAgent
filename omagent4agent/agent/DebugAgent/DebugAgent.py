@@ -148,8 +148,8 @@ class DebugAgent(BaseLLMBackend, BaseWorker):
         """
         print ("traceback 1111111111111",traceback)
         print ("error_message 1111111111111",error_message)    
-        input_parameters = self.stm(self.workflow_instance_id)["input_parameters"]
-        output_parameters = self.stm(self.workflow_instance_id)["output_parameters"]
+        input_parameters = self.stm(self.workflow_instance_id).get("input_parameters","N/A")
+        output_parameters = self.stm(self.workflow_instance_id).get("output_parameters","N/A")
         suggestions_response = self.simple_infer(
             traceback=traceback,
             error_message=error_message,
