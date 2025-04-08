@@ -170,6 +170,30 @@ class WebpageClient:
                 color: #e74c3c; /* Red */
             }
             
+            /* Image styling in info panel */
+            .image-container {
+                margin: 10px 0;
+                text-align: center;
+            }
+            
+            .info-image {
+                max-width: 100%;
+                max-height: 500px;
+                border-radius: 6px;
+                border: 1px solid #2d2e33;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                margin-top: 10px;
+            }
+            
+            .log-entry img {
+                max-width: 100%;
+                max-height: 500px;
+                border: 1px solid #2d2e33;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                display: block;
+                margin: 10px auto;
+            }
+            
             @keyframes fadeIn {
                 from { opacity: 0; transform: translateY(4px); }
                 to { opacity: 1; transform: translateY(0); }
@@ -521,18 +545,30 @@ class WebpageClient:
                     if payload_data is None:
                         continue
                     
-                    # Format running message
-                    progress = html.escape(payload_data.get("progress", ""))
-                    message_text = payload_data.get("message", "")
-                    
-                    # Check if message contains JSON and format it accordingly
-                    if self._is_json(message_text):
-                        formatted_content = self._format_json(message_text)
-                        logs.append(f"<div class='log-entry'><span class='progress'>{progress}</span>: {formatted_content}</div>")
+                    # Check if this is an image message
+                    if "image" in payload_data:
+                        progress = html.escape(payload_data.get("progress", ""))
+                        image_data = payload_data["image"]
+                        
+                        if image_data["type"] == "image_url":
+                            image_html = f'<div class="log-entry"><span class="progress">{progress}</span>: <div><img src="{image_data["url"]}" style="max-width:100%; border-radius:4px; margin-top:8px;"></div></div>'
+                            logs.append(image_html)
+                        elif image_data["type"] == "image_base64":
+                            image_html = f'<div class="log-entry"><span class="progress">{progress}</span>: <div><img src="{image_data["data"]}" style="max-width:100%; border-radius:4px; margin-top:8px;"></div></div>'
+                            logs.append(image_html)
                     else:
-                        # Escape HTML in regular messages
-                        message_text = html.escape(message_text)
-                        logs.append(f"<div class='log-entry'><span class='progress'>{progress}</span>: {message_text}</div>")
+                        # Format running message
+                        progress = html.escape(payload_data.get("progress", ""))
+                        message_text = payload_data.get("message", "")
+                        
+                        # Check if message contains JSON and format it accordingly
+                        if self._is_json(message_text):
+                            formatted_content = self._format_json(message_text)
+                            logs.append(f"<div class='log-entry'><span class='progress'>{progress}</span>: {formatted_content}</div>")
+                        else:
+                            # Escape HTML in regular messages
+                            message_text = html.escape(message_text)
+                            logs.append(f"<div class='log-entry'><span class='progress'>{progress}</span>: {message_text}</div>")
                     
                     # Update the info panel instead of adding to chat
                     info_panel = f"""<div class='log-container'>{''.join(logs)}</div>"""
@@ -559,12 +595,24 @@ class WebpageClient:
                         incomplete_flag = True
                     message_item = payload_data["message"]
                     if message_item["type"] == MessageType.IMAGE_URL.value:
-                        history.append(
-                            {
-                                "role": "assistant",
-                                "content": {"path": message_item["content"]},
-                            }
-                        )
+                        # Handle both URL and base64 image data
+                        image_content = message_item["content"]
+                        if isinstance(image_content, dict) and "path" in image_content:
+                            # Handle existing format
+                            history.append(
+                                {
+                                    "role": "assistant",
+                                    "content": {"path": image_content["path"]},
+                                }
+                            )
+                        else:
+                            # Handle direct URL or base64 string
+                            history.append(
+                                {
+                                    "role": "assistant",
+                                    "content": {"path": image_content},
+                                }
+                            )
                     else:
                         if incomplete_flag:
                             self._incomplete_message = (

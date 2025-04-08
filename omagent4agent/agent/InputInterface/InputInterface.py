@@ -24,6 +24,8 @@ class InputInterface(BaseWorker):
     def _run(self, *args, **kwargs):
         # Read user input through configured input interface
 
+        #self.callback.info_image(self.workflow_instance_id, progress="AGENT ID", image="https://www.crystalmountainresort.com/-/media/crystal/images/2425-images/hero-images/lift-tickets-hero.jpg")
+        #self.callback.show_image(self.workflow_instance_id, progress="AGENT ID", image="https://www.crystalmountainresort.com/-/media/crystal/images/2425-images/hero-images/lift-tickets-hero.jpg")
         input = self.input.read_input(workflow_instance_id=self.workflow_instance_id, input_prompt="Describe the agent you want to create.")
         content = input['messages'][-1]['content']
         for content_item in content:

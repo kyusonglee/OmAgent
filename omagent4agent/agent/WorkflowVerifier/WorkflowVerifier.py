@@ -32,7 +32,12 @@ class WorkflowVerifier(BaseWorker):
                     self.stm(self.workflow_instance_id)["workflow_error_msg"] = "DO_WHILE task is missing loopCondition or loopOver"
                     return {"switch_case_value": False, "error": "DO_WHILE task is missing loopCondition or loopOver"}
                 # Extract taskReferenceName from loopCondition
-                task_ref_name = loop_condition.split('$.')[1].split('.')[0].split('[')[0]
+                try:
+                    task_ref_name = loop_condition.split('$.')[1].split('.')[0].split('[')[0]
+                except:
+                    self.callback.info(message=f"Error: DO_WHILE task '{task['name']}' has invalid loopCondition grammar.", agent_id=self.workflow_instance_id, progress="WorkflowVerifier")
+                    self.stm(self.workflow_instance_id)["workflow_error_msg"] = "DO_WHILE task has invalid loopCondition grammar"
+                    return {"switch_case_value": False, "error": "DO_WHILE task has invalid loopCondition grammar"}
                 print ("task_ref_name",task_ref_name)
                 if not any(t['taskReferenceName'] == task_ref_name for t in loop_over):
                     self.callback.info(message=f"Error: taskReferenceName '{task_ref_name}' in loopCondition is not in loopOver for task '{task['name']}'.", agent_id=self.workflow_instance_id, progress="WorkflowVerifier")

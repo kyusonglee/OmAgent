@@ -1,5 +1,7 @@
 from pathlib import Path
 from typing import List
+import json
+import os
 
 from omagent_core.advanced_components.workflow.dnc.schemas.dnc_structure import \
     TaskTree
@@ -14,6 +16,14 @@ from pydantic import Field
 from collections.abc import Iterator
 from omagent_core.models.llms.prompt.parser import *    
 from pprint import pprint
+
+try:
+    from omagent_core.clients.devices.utils.workflow_visualizer import visualize_workflow_graph
+except ImportError:
+    # Create a fallback function if the visualizer is not available
+    def visualize_workflow_graph(workflow_json):
+        return None
+
 CURRENT_PATH = root_path = Path(__file__).parents[0]
 
 
@@ -30,7 +40,7 @@ class WorkflowManager(BaseLLMBackend, BaseWorker):
         initial_description = self.stm(self.workflow_instance_id)["initial_description"]
         example_input = self.stm(self.workflow_instance_id)["example_input"]
         if type(example_input) == str:            
-            example_input = example_input.replace('“','"').replace('”','"')
+            example_input = example_input.replace('"','"').replace('"','"')
             example_input = json.loads(example_input)
 
         keys = example_input.keys()
@@ -45,6 +55,15 @@ class WorkflowManager(BaseLLMBackend, BaseWorker):
 
         workflow = json.loads(workflow_json)
         self.callback.info(self.workflow_instance_id, progress="Workflow", message=json.dumps({"tasks":workflow["tasks"],"name":workflow["name"]}, indent=2))
+        
+        # Add graph visualization
+        try:
+            workflow_img = visualize_workflow_graph(workflow_json)
+            if workflow_img:
+                self.callback.info_image(self.workflow_instance_id, progress="Workflow Graph", image=workflow_img)
+        except Exception as e:
+            self.callback.info(self.workflow_instance_id, progress="Workflow Graph Error", message=f"Error creating workflow visualization: {str(e)}")
+        
         self.stm(self.workflow_instance_id)["workflow_json"] = workflow_json
         self.callback.info(self.workflow_instance_id, progress="Reasoning...", message=workflow["reasoning"])
         return workflow_json
