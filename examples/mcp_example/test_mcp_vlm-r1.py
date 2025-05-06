@@ -1,5 +1,5 @@
 import os
-os.environ["OMAGENT_MODE"] = "pro"
+os.environ["OMAGENT_MODE"] = "lite"
 from typing import List
 from pydantic import Field
 from omagent_core.models.llms.base import BaseLLMBackend
@@ -14,8 +14,12 @@ from pathlib import Path
 from omagent_core.utils.general import encode_image, read_image
 from omagent_core.tool_system.manager import ToolManager
 import asyncio
+import os
 
+# 设置 CUDA_VISIBLE_DEVICES 环境变量
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"  # 只使用第一个 GPU
 # Set current working directory path
+
 CURRENT_PATH = Path(__file__).parents[0]
 
 # Import registered modules
@@ -40,6 +44,6 @@ class LLMTest(BaseLLMBackend):
 llm_test = LLMTest(workflow_instance_id="temp")
 
 tool_manager = llm_test.tool_manager
-x = tool_manager.execute_task("你能使用什么工具？",)    
+x = tool_manager.execute_task("请描述一下这张图片'/data0/qdl/test/old_women.png'",)    
 print(x)
 
