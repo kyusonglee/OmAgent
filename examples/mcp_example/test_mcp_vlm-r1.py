@@ -44,6 +44,7 @@ class LLMTest(BaseLLMBackend):
 llm_test = LLMTest(workflow_instance_id="temp")
 
 tool_manager = llm_test.tool_manager
-x = tool_manager.execute_task("请描述一下这张图片'/data0/qdl/test/old_women.png'",)    
+#x = tool_manager.execute_task("请描述一下这张图片'/data0/qdl/test/old_women.png'",)   
+x = tool_manager.execute_task("你能使用哪些工具？",)    
 print(x)
 
