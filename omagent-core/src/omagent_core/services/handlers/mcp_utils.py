@@ -1,10 +1,10 @@
 import json
 import os
 from pathlib import Path
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 
 from mcp.client.stdio import StdioServerParameters
-from omagent_core.services.handlers.mcp_client import MCPClient
+from omagent_core.services.handlers.mcp_client import MCPClient, TransportType
 import logging
 
 
@@ -69,14 +69,33 @@ def create_mcp_client(config_path: Optional[Path] = None, server_name: Optional[
         server_config = config["mcpServers"][server_name]
         logging.info(f"No server name provided, using first server '{server_name}' from config")
     
-    # Create the server parameters
-    server_params = StdioServerParameters(
-        command=server_config.get("command", ""),
-        args=server_config.get("args", []),
-        env=server_config.get("env", {})
-    )
+    # Determine transport type from server config
+    transport_type = server_config.get("transport", TransportType.STDIO)
     
-    return MCPClient(server_params)
+    if transport_type == TransportType.STDIO:
+        # Create stdio server parameters for command-line tools
+        server_params = StdioServerParameters(
+            command=server_config.get("command", ""),
+            args=server_config.get("args", []),
+            env=server_config.get("env", {})
+        )
+        return MCPClient(server_params, transport_type=TransportType.STDIO)
+    elif transport_type == TransportType.SSE:
+        # For SSE, we need a URL and optional headers
+        if "url" not in server_config:
+            logging.error(f"SSE transport requires a 'url' field in server config for '{server_name}'")
+            return None
+        
+        # Create a dict with SSE parameters
+        sse_params = {
+            "url": server_config["url"],
+            "headers": server_config.get("headers", {}),
+            "timeout": server_config.get("timeout", 30)
+        }
+        return MCPClient(sse_params, transport_type=TransportType.SSE)
+    else:
+        logging.error(f"Unsupported transport type '{transport_type}' for server '{server_name}'")
+        return None
 
 def create_all_mcp_clients(config_path: Optional[Path] = None) -> Dict[str, MCPClient]:
     """
@@ -95,11 +114,31 @@ def create_all_mcp_clients(config_path: Optional[Path] = None) -> Dict[str, MCPC
         return clients
     
     for server_name, server_config in config["mcpServers"].items():
-        server_params = StdioServerParameters(
-            command=server_config.get("command", ""),
-            args=server_config.get("args", []),
-            env=server_config.get("env", {})
-        )
-        clients[server_name] = MCPClient(server_params)
+        # Determine transport type
+        transport_type = server_config.get("transport", TransportType.STDIO)
+        
+        if transport_type == TransportType.STDIO:
+            # Create stdio server parameters
+            server_params = StdioServerParameters(
+                command=server_config.get("command", ""),
+                args=server_config.get("args", []),
+                env=server_config.get("env", {})
+            )
+            clients[server_name] = MCPClient(server_params, transport_type=TransportType.STDIO)
+        elif transport_type == TransportType.SSE:
+            # For SSE, verify we have a URL
+            if "url" not in server_config:
+                logging.error(f"SSE transport requires a 'url' field in server config for '{server_name}'")
+                continue
+                
+            # Create SSE parameters
+            sse_params = {
+                "url": server_config["url"],
+                "headers": server_config.get("headers", {}),
+                "timeout": server_config.get("timeout", 30)
+            }
+            clients[server_name] = MCPClient(sse_params, transport_type=TransportType.SSE)
+        else:
+            logging.error(f"Unsupported transport type '{transport_type}' for server '{server_name}'")
     
     return clients 

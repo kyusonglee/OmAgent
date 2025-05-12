@@ -41,12 +41,19 @@ class MCPToolAdapter:
             raise ValueError("MCP client not initialized")
         
         try:
-            result = await self.mcp_client.call_tool(self.original_name)(**kwargs)
+            # Extract actual arguments if they're nested under 'arguments' key
+            actual_args = kwargs
+            if 'arguments' in kwargs and isinstance(kwargs['arguments'], dict):
+                actual_args = kwargs['arguments']
+                print(f"Extracted nested arguments: {actual_args}")
+            
+            print(f"Calling MCP tool '{self.original_name}' with args: {actual_args}")
+            result = await self.mcp_client.call_tool(self.original_name)(**actual_args)
             
             # Handle different types of content returned from MCP
             if hasattr(result, 'content') and isinstance(result.content, list) and len(result.content) > 0:
                 content_item = result.content[0]
-                print (content_item)
+                print(f"MCP tool result: {content_item}")
                 # Handle ImageContent specifically
                 if hasattr(content_item, 'type') and content_item.type == 'image':
                     # For image content, return image data or URL
@@ -164,10 +171,14 @@ class ToolManager(BaseLLMBackend):
             # Initialize tools from registry if not provided
             tools_dict = {}
             for name, tool_cls in registry.mapping["tool"].items():
-                if isinstance(tool_cls, type) and issubclass(tool_cls, BaseTool):
-                    tools_dict[name] = tool_cls()
-                elif isinstance(tool_cls, BaseTool):
-                    tools_dict[name] = tool_cls
+                print(f"tool_cls: {tool_cls}, {name}")
+                try:
+                    if isinstance(tool_cls, type) and issubclass(tool_cls, BaseTool):
+                        tools_dict[name] = tool_cls()
+                    elif isinstance(tool_cls, BaseTool):
+                        tools_dict[name] = tool_cls
+                except Exception as e:
+                    print(f"Error in tool_cls: {e}")
             data['tools'] = tools_dict
         
         # Initialize Pydantic model first
@@ -472,6 +483,12 @@ class ToolManager(BaseLLMBackend):
                             args
                         )
                     )
+        
+        # Handle nested arguments structure (e.g., {"arguments": {...}, "name": "tool_name"})
+        if isinstance(args, dict) and "arguments" in args and isinstance(args["arguments"], dict):
+            print(f"Extracting nested arguments structure for tool {tool_name}")
+            args = args["arguments"]
+
         # Handle MCPToolAdapter separately
         if isinstance(tool, MCPToolAdapter):
             print("MCPToolAdapter")
@@ -542,9 +559,15 @@ class ToolManager(BaseLLMBackend):
                             args
                         )
                     )
+        
+        # Handle nested arguments structure (e.g., {"arguments": {...}, "name": "tool_name"})
+        if isinstance(args, dict) and "arguments" in args and isinstance(args["arguments"], dict):
+            print(f"Extracting nested arguments structure for tool {tool_name}")
+            args = args["arguments"]
                     
         # Handle MCPToolAdapter separately
         if isinstance(tool, MCPToolAdapter):
+            print(f"Executing async MCPToolAdapter {tool_name} with args: {args}")
             return await tool.run(**args)
         else:
             # Standard BaseTool handling
@@ -694,14 +717,19 @@ class ToolManager(BaseLLMBackend):
             if not tool_calls and content:
                 print("No tool_calls in API response, trying to extract from content")
                 tool_name, args = self._extract_tool_call_json(content)
-                print (tool_name, args)
+                print(tool_name, args)
                 if tool_name and args:
                     print(f"Executing extracted tool: {tool_name}")
                     print(f"With arguments: {args}")
                     
                     # Execute the tool with the provided arguments
-                    result = self.execute(tool_name, args)
-                    return result
+                    try:
+                        result = self.execute(tool_name, args)
+                        return "success", result
+                    except Exception as e:
+                        error_msg = f"Error executing tool {tool_name}: {str(e)}"
+                        print(error_msg)
+                        return "failed", error_msg
             
             # If we have tool_calls directly from API, use them
             if tool_calls:
@@ -723,11 +751,11 @@ class ToolManager(BaseLLMBackend):
                 try:
                     # Execute the tool with the provided arguments
                     result = self.execute(tool_name, args)
-                    return result
+                    return "success", result
                 except Exception as e:
-                    error_msg = str(e)
-                    print(f"Tool execution failed: {error_msg}")
-                    return "failed:"+ str(error_msg)
+                    error_msg = f"Error executing tool {tool_name}: {str(e)}"
+                    print(error_msg)
+                    return "failed", error_msg
             
             # If we reach here, no tool calls were found or processed
             print("No tool calls could be found or processed. Model responded with:", content)
@@ -738,7 +766,7 @@ class ToolManager(BaseLLMBackend):
             print(error_msg)
             import traceback
             traceback.print_exc()
-            return "failed:"+ str(error_msg)
+            return "failed", error_msg
 
     async def aexecute_task(self, task, related_info=None, function=None):
         if self.llm == None:
@@ -804,8 +832,13 @@ class ToolManager(BaseLLMBackend):
                     print(f"With arguments: {args}")
                     
                     # Execute the tool with the provided arguments
-                    result = await self.aexecute(tool_name, args)
-                    return "success", result
+                    try:
+                        result = await self.aexecute(tool_name, args)
+                        return "success", result
+                    except Exception as e:
+                        error_msg = f"Error executing tool {tool_name}: {str(e)}"
+                        print(error_msg)
+                        return "failed", error_msg
             
             # If we have tool_calls directly from API, use them
             if tool_calls:
@@ -828,7 +861,7 @@ class ToolManager(BaseLLMBackend):
                     result = await self.aexecute(tool_name, args)
                     return "success", result
                 except Exception as e:
-                    error_msg = str(e)
+                    error_msg = f"Error executing tool {tool_name}: {str(e)}"
                     print(f"Tool execution error: {error_msg}")
                     return "failed", error_msg
             
