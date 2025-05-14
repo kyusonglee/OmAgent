@@ -23,6 +23,18 @@ class Container:
         self.conductor_config = Configuration()
         self.aaas_config = AaasConfig()
 
+        if os.getenv("OMAGENT_MODE") == "lite":
+            try:
+                server_address = ("127.0.0.1", 6379)
+                server = TcpFakeServer(server_address, server_type="redis")
+                t = Thread(target=server.serve_forever, daemon=True)
+                t.start()
+                print("Fake redis server started")
+                
+            except Exception as e:
+                print("Warning: error starting fake redis server:", e)
+        
+
     def register_connector(
         self,
         connector: Type[BaseModel],
@@ -227,6 +239,10 @@ class Container:
         Args:
             config_data: The dict including connectors and components configurations
         """
+        if os.getenv("OMAGENT_MODE") == "lite":
+            print ("skipping from_config")
+            return
+
         def clean_config_dict(config_dict: dict) -> dict:
             """Recursively clean up the configuration dictionary, removing all 'description' and 'env_var' keys"""
             cleaned = {}

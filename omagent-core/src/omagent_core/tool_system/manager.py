@@ -40,8 +40,42 @@ class MCPToolAdapter:
         if not self.mcp_client:
             raise ValueError("MCP client not initialized")
         
-        result = await self.mcp_client.call_tool(self.original_name)(**kwargs)
-        return result
+        try:
+            # Extract actual arguments if they're nested under 'arguments' key
+            actual_args = kwargs
+            if 'arguments' in kwargs and isinstance(kwargs['arguments'], dict):
+                actual_args = kwargs['arguments']
+                print(f"Extracted nested arguments: {actual_args}")
+            
+            print(f"Calling MCP tool '{self.original_name}' with args: {actual_args}")
+            result = await self.mcp_client.call_tool(self.original_name)(**actual_args)
+            
+            # Handle different types of content returned from MCP
+            if hasattr(result, 'content') and isinstance(result.content, list) and len(result.content) > 0:
+                content_item = result.content[0]
+                print(f"MCP tool result: {content_item}")
+                # Handle ImageContent specifically
+                if hasattr(content_item, 'type') and content_item.type == 'image':
+                    # For image content, return image data or URL
+                    if hasattr(content_item, 'url'):
+                        return {"type": "image", "url": content_item.url}
+                    elif hasattr(content_item, 'data'):
+                        return {"type": "image", "data": content_item.data}
+                    else:
+                        # Return a summary of what we have instead of failing
+                        return {"type": "image", "summary": "Image data received but not accessible via text attribute"}
+                
+                # For standard text content
+                if hasattr(content_item, 'text'):
+                    return content_item.text
+            
+            # If we couldn't extract specific content format, return the whole result
+            return result
+        except Exception as e:
+            print(f"Error in MCPToolAdapter run: {e}")
+            # Return the error message rather than crashing
+            return {"error": str(e), "status": "failed"}
+
     
     def generate_schema(self):
         """Generate a schema for the tool that's compatible with OpenAI's function calling format."""
@@ -138,10 +172,15 @@ class ToolManager(BaseLLMBackend):
             # Initialize tools from registry if not provided
             tools_dict = {}
             for name, tool_cls in registry.mapping["tool"].items():
-                if isinstance(tool_cls, type) and issubclass(tool_cls, BaseTool):
-                    tools_dict[name] = tool_cls()
-                elif isinstance(tool_cls, BaseTool):
-                    tools_dict[name] = tool_cls
+                print(f"tool_cls: {tool_cls}, {name}")
+                try:
+                    if isinstance(tool_cls, type) and issubclass(tool_cls, BaseTool):
+                        tools_dict[name] = tool_cls()
+                    elif isinstance(tool_cls, BaseTool):
+                        tools_dict[name] = tool_cls
+                except Exception as e:
+                    print(f"Error in tool_cls: {e}")
+
             data['tools'] = tools_dict
         
         # Initialize Pydantic model first
@@ -391,7 +430,30 @@ class ToolManager(BaseLLMBackend):
             tool_schemas = []
             for tool in self.tools.values():
                 # Use the standardization method to ensure consistent format
-                tool_schemas.append(self._standardize_tool_schema(tool))
+                schema = self._standardize_tool_schema(tool)
+                
+                # Add required fields if missing for OpenAI compatibility
+                if "function" in schema:
+                    func_schema = schema["function"]
+                    
+                    # Ensure parameters are properly structured
+                    if "parameters" not in func_schema:
+                        func_schema["parameters"] = {
+                            "type": "object",
+                            "properties": {},
+                            "required": []
+                        }
+                        
+                    # Ensure required is an array
+                    if "required" not in func_schema["parameters"]:
+                        func_schema["parameters"]["required"] = []
+                        
+                    # Ensure parameters has properties
+                    if "properties" not in func_schema["parameters"]:
+                        func_schema["parameters"]["properties"] = {}
+                
+                tool_schemas.append(schema)
+
             return tool_schemas
         else:
             raise ValueError("Only support gpt style tool selection schema")
@@ -424,6 +486,13 @@ class ToolManager(BaseLLMBackend):
                             args
                         )
                     )
+        
+        # Handle nested arguments structure (e.g., {"arguments": {...}, "name": "tool_name"})
+        if isinstance(args, dict) and "arguments" in args and isinstance(args["arguments"], dict):
+            print(f"Extracting nested arguments structure for tool {tool_name}")
+            args = args["arguments"]
+
+
         # Handle MCPToolAdapter separately
         if isinstance(tool, MCPToolAdapter):
             print("MCPToolAdapter")
@@ -494,9 +563,16 @@ class ToolManager(BaseLLMBackend):
                             args
                         )
                     )
+        
+        # Handle nested arguments structure (e.g., {"arguments": {...}, "name": "tool_name"})
+        if isinstance(args, dict) and "arguments" in args and isinstance(args["arguments"], dict):
+            print(f"Extracting nested arguments structure for tool {tool_name}")
+            args = args["arguments"]
                     
         # Handle MCPToolAdapter separately
         if isinstance(tool, MCPToolAdapter):
+            print(f"Executing async MCPToolAdapter {tool_name} with args: {args}")
+
             return await tool.run(**args)
         else:
             # Standard BaseTool handling
@@ -610,45 +686,93 @@ class ToolManager(BaseLLMBackend):
         tools_schema = self.generate_schema()
         print(f"Found {len(tools_schema)} available tools")
         
-        # Force tool choice to "auto" to ensure function calling
-        chat_complete_res = self.infer(
-            [{"task": task, "related_info": related_info_str}],
-            tools=tools_schema,
-            tool_choice="auto"
-        )[0]
+        # Create a more structured system prompt that uses XML tags for tools
+        tool_schemas_str = json.dumps(tools_schema)
         
-        # Extract content and tool calls
-        content = chat_complete_res["choices"][0]["message"].get("content")
-        tool_calls = chat_complete_res["choices"][0]["message"].get("tool_calls")
+        system_prompt = f"""You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools: <tools> {tool_schemas_str} </tools> Use the following pydantic model json schema for each tool call you will make: {{"properties": {{"arguments": {{"title": "Arguments", "type": "object"}}, "name": {{"title": "Name", "type": "string"}}}}, "required": ["arguments", "name"], "title": "FunctionCall", "type": "object"}} For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
+<tool_call>
+{{"arguments": <args-dict>, "name": <function-name>}}
+</tool_call>"""
         
-        print("Tool calls received:", "Yes" if tool_calls else "No")
+        # Prepare messages with explicit tool-use instructions
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Task: {task}\nContext: {related_info_str}"}
+        ]
         
-        if not tool_calls:
-            print("No tool calls found in response. Model responded with:", content)
-            return "failed", content
-        else:
-            # Process the first tool call
-            tool_call = tool_calls[0]
-            tool_name = tool_call["function"]["name"]
+        try:
+            # Call the LLM with the structured prompt
+            print("Calling LLM with structured prompt for tool calling")
+            chat_complete_res = self.llm.generate(
+                records=[Message(**item) for item in messages],
+                tools=tools_schema,
+                tool_choice="auto"
+            )
             
-            try:
-                # Parse the arguments
-                args = json.loads(tool_call["function"]["arguments"])
-            except json.JSONDecodeError as e:
-                print(f"Error parsing arguments: {e}")
-                args = tool_call["function"]["arguments"]
+            print("Response received")
+            
+            # Extract content from response
+            content = chat_complete_res["choices"][0]["message"].get("content", "")
+            tool_calls = chat_complete_res["choices"][0]["message"].get("tool_calls", [])
+            
+            print("Tool calls directly from API:", "Yes" if tool_calls else "No")
+                        
+            
+            # If API didn't return tool_calls, try to parse from content
+            if not tool_calls and content:
+                print("No tool_calls in API response, trying to extract from content")
+                tool_name, args = self._extract_tool_call_json(content)
+                print(tool_name, args)
+                if tool_name and args:
+                    print(f"Executing extracted tool: {tool_name}")
+                    print(f"With arguments: {args}")
+                    
+                    # Execute the tool with the provided arguments
+                    try:
+                        result = self.execute(tool_name, args)
+                        return "success", result
+                    except Exception as e:
+                        error_msg = f"Error executing tool {tool_name}: {str(e)}"
+                        print(error_msg)
+                        return "failed", error_msg
+            
+            # If we have tool_calls directly from API, use them
+            if tool_calls:
+                # Process the first tool call
+                tool_call = tool_calls[0]
+                print("tool_call:", tool_call)
+                tool_name = tool_call["function"]["name"]
                 
-            print(f"Executing tool: {tool_name}")
-            print(f"With arguments: {args}")
+                try:
+                    # Parse the arguments
+                    args = json.loads(tool_call["function"]["arguments"])
+                except json.JSONDecodeError as e:
+                    print(f"Error parsing arguments: {e}")
+                    args = tool_call["function"]["arguments"]
+                    
+                print(f"Executing tool from API: {tool_name}")
+                print(f"With arguments: {args}")
+                
+                try:
+                    # Execute the tool with the provided arguments
+                    result = self.execute(tool_name, args)
+                    return "success", result
+                except Exception as e:
+                    error_msg = f"Error executing tool {tool_name}: {str(e)}"
+                    print(error_msg)
+                    return "failed", error_msg
             
-            try:
-                # Execute the tool with the provided arguments
-                result = self.execute(tool_name, args)
-                return "success", result
-            except Exception as e:
-                error_msg = str(e)
-                print(f"Tool execution failed: {error_msg}")
-                return "failed", error_msg
+            # If we reach here, no tool calls were found or processed
+            print("No tool calls could be found or processed. Model responded with:", content)
+            return "failed", content
+            
+        except Exception as e:
+            error_msg = f"LLM call failed: {str(e)}"
+            print(error_msg)
+            import traceback
+            traceback.print_exc()
+            return "failed", error_msg
+       
 
     async def aexecute_task(self, task, related_info=None, function=None):
         if self.llm == None:
@@ -668,41 +792,95 @@ class ToolManager(BaseLLMBackend):
         tools_schema = self.generate_schema()
         print(f"Found {len(tools_schema)} available tools")
         
-        # Force tool choice to "auto" to ensure function calling
-        chat_complete_res = await self.ainfer(
-            [{"task": task, "related_info": related_info_str}],
-            tools=tools_schema,
-            tool_choice="auto"
-        )
+        # Create a more structured system prompt that uses XML tags for tools
+        tool_schemas_str = json.dumps(tools_schema)
         
-        # Important: ainfer returns a list of results directly, not as [0]
-        if not chat_complete_res or len(chat_complete_res) == 0:
-            return "failed", "No response from LLM"
+        system_prompt = f"""You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools: <tools> {tool_schemas_str} </tools> Use the following pydantic model json schema for each tool call you will make: {{"properties": {{"arguments": {{"title": "Arguments", "type": "object"}}, "name": {{"title": "Name", "type": "string"}}}}, "required": ["arguments", "name"], "title": "FunctionCall", "type": "object"}} For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:
+<tool_call>
+{{"arguments": <args-dict>, "name": <function-name>}}
+</tool_call>"""
+        
+        # Prepare messages with explicit tool-use instructions
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Task: {task}\nContext: {related_info_str}"}
+        ]
+        
+        try:
+            # Call the LLM with the structured prompt
+            print("Calling LLM with structured prompt for tool calling")
+            chat_complete_res = await self.llm.agenerate(
+                records=[Message(**item) for item in messages],
+                tools=tools_schema,
+                tool_choice="auto"
+            )
             
-        # Extract the first (and typically only) result
-        result = chat_complete_res[0]
-        content = result["choices"][0]["message"].get("content")
-        tool_calls = result["choices"][0]["message"].get("tool_calls")
-        
-        if not tool_calls:
-            return "failed", content
-        else:
-            try:
+            print("Response received")
+            
+            if not chat_complete_res or len(chat_complete_res["choices"]) == 0:
+                return "failed", "No response from LLM"
+            
+            # Extract content from response
+            content = chat_complete_res["choices"][0]["message"].get("content", "")
+            tool_calls = chat_complete_res["choices"][0]["message"].get("tool_calls", [])
+            
+            print("Tool calls directly from API:", "Yes" if tool_calls else "No")
+            
+            # If API didn't return tool_calls, try to parse from content
+            
+            if not tool_calls and content:
+                print("No tool_calls in API response, trying to extract from content")
+                
+                tool_name, args = self._extract_tool_call_json(content)
+                
+                if tool_name and args:
+                    print(f"Executing extracted tool: {tool_name}")
+                    print(f"With arguments: {args}")
+                    
+                    # Execute the tool with the provided arguments
+                    try:
+                        result = await self.aexecute(tool_name, args)
+                        return "success", result
+                    except Exception as e:
+                        error_msg = f"Error executing tool {tool_name}: {str(e)}"
+                        print(error_msg)
+                        return "failed", error_msg
+            
+            # If we have tool_calls directly from API, use them
+            if tool_calls:
                 # Process the first tool call
                 tool_call = tool_calls[0]
+                print("tool_call:", tool_call)
                 tool_name = tool_call["function"]["name"]
-                args = json.loads(tool_call["function"]["arguments"])
                 
-                print(f"Executing tool: {tool_name}")
+                try:
+                    args = json.loads(tool_call["function"]["arguments"])
+                except json.JSONDecodeError as e:
+                    print(f"Error parsing arguments: {e}")
+                    args = tool_call["function"]["arguments"]
+                
+                print(f"Executing tool from API: {tool_name}")
                 print(f"With arguments: {args}")
                 
-                # Execute the tool
-                result = await self.aexecute(tool_name, args)
-                return "success", result
-            except Exception as e:
-                error_msg = str(e)
-                print(f"Tool execution error: {error_msg}")
-                return "failed", error_msg
+                try:
+                    # Execute the tool
+                    result = await self.aexecute(tool_name, args)
+                    return "success", result
+                except Exception as e:
+                    error_msg = f"Error executing tool {tool_name}: {str(e)}"
+                    print(f"Tool execution error: {error_msg}")
+                    return "failed", error_msg
+            
+            # If we reach here, no tool calls were found or processed
+            print("No tool calls could be found or processed. Model responded with:", content)
+            return "failed", content
+            
+        except Exception as e:
+            error_msg = f"LLM call failed: {str(e)}"
+            print(error_msg)
+            import traceback
+            traceback.print_exc()
+            return "failed", error_msg
 
     def initialize_mcp(self, config_path: Optional[Path] = None, server_names: Optional[List[str]] = None):
         """
@@ -785,7 +963,7 @@ class ToolManager(BaseLLMBackend):
                 base_name = tool.name.replace('-', '_').replace(' ', '_').lower()
                 # Include server name in the tool name to avoid conflicts between servers
                 tool_name = f"mcp_{server_name}_{base_name}"
-                print(f"Discovered MCP tool: {tool_name}")
+                #print(f"Discovered MCP tool: {tool_name}")
                 
                 # Skip if tool already exists
                 if tool_name in self.tools:
@@ -968,4 +1146,106 @@ class ToolManager(BaseLLMBackend):
                     # For video/audio, just include the file path
                     processed_params[key] = media
         
-        return processed_params
+    def _extract_tool_call_json(self, content: str):
+        """Extract tool call JSON from content regardless of surrounding tags or formats.
+        
+        Args:
+            content: String that might contain a tool call JSON
+            
+        Returns:
+            Tuple of (tool_name, args) if successful, or (None, None) if not
+        """
+        if not content or not isinstance(content, str):
+            return None, None
+            
+        print(f"Extracting tool call from content: {content[:200]}")
+        
+        
+        # First clean up the content by removing any HTML/XML tags
+        import re
+        
+        # Try to find a JSON object with "arguments" and "name" keys
+        try:
+            # Clean up the content by stripping any text before the first { and after the last }
+            first_brace = content.find('{')
+            last_brace = content.rfind('}')
+            
+            if first_brace >= 0 and last_brace > first_brace:
+                json_str = content[first_brace:last_brace+1]
+                try:
+                    # Try to parse the JSON
+                    json_data = json.loads(json_str)
+                    if isinstance(json_data, dict) and "name" in json_data and "arguments" in json_data:
+                        return json_data["name"], json_data["arguments"]
+                except:
+                    pass
+                
+            # If the above approach failed, try a more aggressive regex approach to find JSON
+            # Find anything that looks like a JSON object
+            json_pattern = r'\{(?:[^{}]|"[^"]*"|\{(?:[^{}]|"[^"]*")*\})*\}'
+            json_matches = re.findall(json_pattern, content, re.DOTALL)
+            
+            # Try each potential JSON match
+            for json_str in json_matches:
+                try:
+                    json_data = json.loads(json_str)
+                    if isinstance(json_data, dict):
+                        # Check if it has name and arguments fields
+                        if "name" in json_data and "arguments" in json_data:
+                            print(f"Found valid tool call JSON with name:{json_data['name']}")
+                            return json_data["name"], json_data["arguments"]
+                except:
+                    continue
+                    
+            # If still no match, try to find JSON-like patterns with manually specified patterns
+            print("Trying specialized JSON extraction patterns...")
+            
+            # Look for patterns like "name": "something", "arguments": {...}
+            name_pattern = r'"name"\s*:\s*"([^"]+)"'
+            args_pattern = r'"arguments"\s*:\s*(\{[^}]+\})'
+            
+            name_match = re.search(name_pattern, content)
+            args_match = re.search(args_pattern, content)
+            
+            if name_match and args_match:
+                tool_name = name_match.group(1)
+                args_str = args_match.group(1)
+                try:
+                    args = json.loads(args_str)
+                    print(f"Extracted tool name '{tool_name}' and arguments from separate patterns")
+                    return tool_name, args
+                except:
+                    pass
+                    
+            # Last resort: handle the specific issue with tool calls that don't follow JSON format
+            if '</SOLUTION>' in content:
+                # Edge case for weird formatting like '</SOLUTION>\n{"arguments": {...}, "name": "..."}'
+                clean_content = content.replace('</SOLUTION>', '').strip()
+                try:
+                    json_data = json.loads(clean_content)
+                    if "name" in json_data and "arguments" in json_data:
+                        return json_data["name"], json_data["arguments"]
+                except:
+                    pass
+                    
+            # If we still haven't found a match, check if any tool name appears in the content
+            for tool_name in self.tools.keys():
+                if tool_name in content:
+                    # Extract JSON-looking parts of the content
+                    json_candidates = re.findall(r'\{.*?\}', content, re.DOTALL)
+                    for json_str in json_candidates:
+                        try:
+                            args = json.loads(json_str)
+                            if isinstance(args, dict):
+                                print(f"Found potential arguments for tool '{tool_name}'")
+                                return tool_name, args
+                        except:
+                            continue
+                            
+        except Exception as e:
+            print(f"Error during JSON extraction: {e}")
+            import traceback
+            traceback.print_exc()
+            
+        return None, None
+

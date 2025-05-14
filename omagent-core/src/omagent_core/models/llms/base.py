@@ -21,6 +21,7 @@ from .prompt.prompt import PromptTemplate
 from .schemas import Message
 import copy
 from collections.abc import Iterator
+from pprint import pprint
 
 T = TypeVar("T", str, dict, list)
 
@@ -173,7 +174,7 @@ class BaseLLMBackend(BotBase, ABC):
             records = []
             for prompt in prompts:
                 selected_inputs = {k: inputs.get(k, "") for k in prompt.input_variables}
-                prompt_str = prompt.template
+                prompt_str = prompt.template                
                 parts = re.split(r"(\{\{.*?\}\})", prompt_str)
                 formatted_parts = []
                 for part in parts:
@@ -262,7 +263,7 @@ class BaseLLMBackend(BotBase, ABC):
                         self.stm(self.workflow_instance_id)['token_usage'] = stm_token_usage
                     yield chunk
         
-        for prompt in prompts:
+        for prompt in prompts:       
             output = self.llm.generate(prompt, **kwargs)
             if not isinstance(output, Iterator):
                 for key, value in output.get("usage", {}).items():

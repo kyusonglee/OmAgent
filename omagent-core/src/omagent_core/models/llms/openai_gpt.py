@@ -136,7 +136,7 @@ class OpenaiGPTLLM(BaseLLM):
                 max_tokens=kwargs.get("max_tokens", self.max_tokens),
                 response_format=kwargs.get("response_format", self.response_format),
                 tools=kwargs.get("tools", None),
-                tool_choice=kwargs.get("tool_choice", None),
+                tool_choice=kwargs.get("tool_choice", "none"),
                 stream=kwargs.get("stream", self.stream),
                 n=kwargs.get("n", self.n),
                 top_p=kwargs.get("top_p", self.top_p),

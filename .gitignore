@@ -155,6 +155,7 @@ video_cache/
 
 # vscode
 .vscode
+*copy*
 
 # JSON files
 *.json

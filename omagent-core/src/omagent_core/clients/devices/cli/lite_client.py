@@ -68,6 +68,7 @@ class DefaultClient:
         import threading
         from time import sleep
 
+
         workflow_instance_id = self.workflow_instance_id
         exception_queue = queue.Queue()  # add exception queue
 
