@@ -14,8 +14,12 @@ from pathlib import Path
 from omagent_core.utils.general import encode_image, read_image
 from omagent_core.tool_system.manager import ToolManager
 import asyncio
+import os
 
+# 设置 CUDA_VISIBLE_DEVICES 环境变量
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"  # 只使用第一个 GPU
 # Set current working directory path
+
 CURRENT_PATH = Path(__file__).parents[0]
 
 # Import registered modules
@@ -25,9 +29,9 @@ container.register_stm("SharedMemSTM")
 class LLMTest(BaseLLMBackend):
     llm: OpenaiGPTLLM ={
         "name": "OpenaiGPTLLM", 
-        "model_id": "gpt-4o-mini", 
+        "model_id": "gpt-4o", 
         "api_key": os.getenv("custom_openai_key"), 
-        "endpoint": "https://api.openai.com/v1",   
+        "endpoint": os.getenv("custom_openai_endpoint"),   
         "vision": False,
         "response_format": "text",
         "use_default_sys_prompt": False,
@@ -40,6 +44,7 @@ class LLMTest(BaseLLMBackend):
 llm_test = LLMTest(workflow_instance_id="temp")
 
 tool_manager = llm_test.tool_manager
-x = tool_manager.execute_task("command ls -l for the current directory") 
+#x = tool_manager.execute_task("请描述一下这张图片'/data0/qdl/test/old_women.png'",)   
+x = tool_manager.execute_task("你能使用哪些工具？",)    
 print(x)
 

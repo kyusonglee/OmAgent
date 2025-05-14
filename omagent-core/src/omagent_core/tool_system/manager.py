@@ -449,7 +449,7 @@ class ToolManager(BaseLLMBackend):
             try:
                 # Run with a timeout
                 result = loop.run_until_complete(
-                    asyncio.wait_for(run_async_tool(), timeout=60.0)
+                    asyncio.wait_for(run_async_tool(), timeout=200.0)
                 )
                 print("MCPToolAdapter execution completed successfully")
                 return result

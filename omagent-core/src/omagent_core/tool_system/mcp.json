@@ -1,6 +1,6 @@
 {
-    "mcpServers": {
-      "desktop-commander": {
+  "mcpServers": {
+    "desktop-commander": {
         "command": "npx",
         "args": [
           "-y",
@@ -10,8 +10,15 @@
           "--key",
           "d5e18890-a040-4814-8877-85948425e883"
         ]
-      }     
+    },
+    "vlm_r1": {
+        "command": "/data0/qdl/anaconda3/envs/redis/bin/uv",
+        "args": [
+            "--directory",
+            "/data0/qdl/test/OmAgent/examples/mcp_example",
+            "run",
+            "server.py"
+        ]
     }
+  }
 }
-
-  
