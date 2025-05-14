@@ -57,7 +57,7 @@ class BaseWorker(BotBase, ABC):
     _task_type: Optional[str] = None
 
     def model_post_init(self, __context: Any) -> None:
-        self.task_definition_name = self.name
+        self.task_definition_name = self.id or self.name
         self.next_task_index = 0
         self._task_definition_name_cache = None
 
@@ -79,11 +79,11 @@ class BaseWorker(BotBase, ABC):
         self._task_type = value
 
     @property
-    def workflow_instance_id(self) -> Optional[Union[str]]:
+    def workflow_instance_id(self) -> Optional[str]:
         return self._workflow_instance_id
 
     @workflow_instance_id.setter
-    def workflow_instance_id(self, value: Optional[Union[str]]):
+    def workflow_instance_id(self, value: Optional[str]):
         self._workflow_instance_id = value
 
     @abstractmethod
@@ -160,6 +160,7 @@ class BaseWorker(BotBase, ABC):
             logger.error(
                 f"Error executing task {task.task_def_name} with id {task.task_id}.  error = {traceback.format_exc()}"
             )
+            self.callback.error(self.workflow_instance_id, error_code=500, error_info=f"ERROR:The '{task.task_def_name}' task execution failed.")
 
             task_result.logs = [
                 TaskExecLog(

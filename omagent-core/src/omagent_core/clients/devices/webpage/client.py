@@ -36,6 +36,8 @@ class WebpageClient:
         self._config_path = config_path
         self._workers = workers
         self._workflow_instance_id = None
+        self._worker_config = build_from_file(self._config_path)
+        self._task_to_domain = {}
         self._incomplete_message = ""
         self._custom_css = """
             #OmAgent {
@@ -45,6 +47,16 @@ class WebpageClient:
             }
             
             .running-message {
+                margin: 0;
+                padding: 2px 4px;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                font-family: inherit;
+            }
+
+            .error-message {
+                background-color: #f8d7da;
+                color: #721c24;
                 margin: 0;
                 padding: 2px 4px;
                 white-space: pre-wrap;
@@ -67,12 +79,18 @@ class WebpageClient:
                 padding: 0 !important;
                 box-shadow: none !important;
             }
+
+            .message:has(.error-message) {
+                background: none !important;
+                border: none !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+            }
         """
 
     def start_interactor(self):
-        worker_config = build_from_file(self._config_path)
         self._task_handler_interactor = TaskHandler(
-            worker_config=worker_config, workers=self._workers
+            worker_config=self._worker_config, workers=self._workers, task_to_domain=self._task_to_domain
         )
         self._task_handler_interactor.start_processes()
         try:
@@ -113,9 +131,8 @@ class WebpageClient:
         self._task_handler_interactor.stop_processes()
 
     def start_processor(self):
-        worker_config = build_from_file(self._config_path)
         self._task_handler_processor = TaskHandler(
-            worker_config=worker_config, workers=self._workers
+            worker_config=self._worker_config, workers=self._workers, task_to_domain=self._task_to_domain
         )
         self._task_handler_processor.start_processes()
 
@@ -161,7 +178,7 @@ class WebpageClient:
     def add_message(self, history, message):
         if self._workflow_instance_id is None:
             self._workflow_instance_id = self._interactor.start_workflow_with_input(
-                workflow_input={}
+                workflow_input={}, task_to_domain=self._task_to_domain
             )
         contents = []
         for x in message["files"]:
@@ -184,7 +201,7 @@ class WebpageClient:
     def add_processor_message(self, history, message):
         if self._workflow_instance_id is None:
             self._workflow_instance_id = self._processor.start_workflow_with_input(
-                workflow_input={}
+                workflow_input={}, task_to_domain=self._task_to_domain
             )
         image_items = []
         for idx, x in enumerate(message["files"]):
@@ -241,29 +258,16 @@ class WebpageClient:
                     if payload_data["content_status"] == ContentStatus.INCOMPLETE.value:
                         incomplete_flag = True
                     message_item = payload_data["message"]
-                    if message_item["type"] == MessageType.IMAGE_URL.value:
-                        history.append(
-                            {
-                                "role": "assistant",
-                                "content": {"path": message_item["content"]},
-                            }
-                        )
-                    else:
-                        if incomplete_flag:
-                            self._incomplete_message = (
-                                self._incomplete_message + message_item["content"]
+                    if payload_data["code"] == 0:
+                        if message_item["type"] == MessageType.IMAGE_URL.value:
+                            history.append(
+                                {
+                                    "role": "assistant",
+                                    "content": {"path": message_item["content"]},
+                                }
                             )
-                            if history and history[-1]["role"] == "assistant":
-                                history[-1]["content"] = self._incomplete_message
-                            else:
-                                history.append(
-                                    {
-                                        "role": "assistant",
-                                        "content": self._incomplete_message,
-                                    }
-                                )
                         else:
-                            if self._incomplete_message != "":
+                            if incomplete_flag:
                                 self._incomplete_message = (
                                     self._incomplete_message + message_item["content"]
                                 )
@@ -276,15 +280,38 @@ class WebpageClient:
                                             "content": self._incomplete_message,
                                         }
                                     )
-                                self._incomplete_message = ""
                             else:
-                                history.append(
-                                    {
-                                        "role": "assistant",
-                                        "content": message_item["content"],
-                                    }
-                                )
-
+                                if self._incomplete_message != "":
+                                    self._incomplete_message = (
+                                        self._incomplete_message + message_item["content"]
+                                    )
+                                    if history and history[-1]["role"] == "assistant":
+                                        history[-1]["content"] = self._incomplete_message
+                                    else:
+                                        history.append(
+                                            {
+                                                "role": "assistant",
+                                                "content": self._incomplete_message,
+                                            }
+                                        )
+                                    self._incomplete_message = ""
+                                else:
+                                    history.append(
+                                        {
+                                            "role": "assistant",
+                                            "content": message_item["content"],
+                                        }
+                                    )
+                    else:
+                        formatted_message = (
+                            f'<pre class="error-message">{payload_data["error_info"]}</pre>'
+                        )
+                        history.append(
+                                        {
+                                            "role": "assistant",
+                                            "content": formatted_message,
+                                        }
+                                    )
                     yield history
 
                     container.get_connector("redis_stream_client")._client.xack(

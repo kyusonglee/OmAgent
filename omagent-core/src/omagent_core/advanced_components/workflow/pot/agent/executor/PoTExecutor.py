@@ -8,7 +8,11 @@ from pydantic import Field
 from typing import List
 from omagent_core.utils.logger import logging
 import func_timeout
+import numpy as np
 import math
+import statistics
+from sympy import symbols, solve, And, sqrt, Symbol
+import itertools
 
 # Get absolute path to the directory containing this file
 CURRENT_PATH = root_path = Path(__file__).parents[0]
@@ -63,30 +67,89 @@ class PoTExecutor(BaseWorker, BaseLLMBackend):
             >>> floatify_ans([3.14])
             3.14
         """
-        if ans is None:
-            return None
-        elif type(ans) == dict:
-            # For dictionaries, extract the first value
-            ans = list(ans.values())[0]
-        elif type(ans) == bool:
-            # Preserve boolean values without conversion
-            ans = ans
-        elif type(ans) in [list, tuple]:
-            if not ans:
+        try:
+            if ans != 0 and ans is None:
                 return None
+            elif type(ans) == dict:
+                # For dictionaries, extract the first value
+                ans = list(ans.values())[0]
+            elif type(ans) == bool:
+                # Preserve boolean values without conversion
+                ans = ans
+            elif type(ans) in [list, tuple]:
+                if not ans:
+                    return None
+                else:
+                    # For sequences, try to convert first element to float
+                    try:
+                        ans = float(ans[0])
+                    except Exception:
+                        ans = str(ans[0])
             else:
-                # For sequences, try to convert first element to float
+                # For all other types, attempt float conversion
                 try:
-                    ans = float(ans[0])
+                    ans = float(ans)
                 except Exception:
-                    ans = str(ans[0])
-        else:
-            # For all other types, attempt float conversion
-            try:
-                ans = float(ans)
-            except Exception:
-                ans = str(ans)
+                    ans = str(ans)
+        except Exception as e:
+            logging.info(f"Error in floatify_ans: {e}")
+            return None
         return ans
+
+    def extract_code_blocks(self, text, is_fewshot=False):
+        code_blocks = []
+        lines = text.split('\n')
+        if '```python' not in text:
+            if is_fewshot:
+                return text
+            
+            if 'def solver():' in text:
+                return text
+            
+            for line in lines:
+                if not line.strip():  # Skip empty lines or lines with only whitespace
+                    continue
+                if not line.startswith('    '):
+                    code_blocks.append('    ' + line)
+                else:
+                    code_blocks.append(line)
+            return '\n'.join(code_blocks)
+        
+        in_code_block = False
+        current_block = []
+        
+        for line in lines:
+            if line.strip().startswith('```'):
+                if in_code_block:
+                    # End of code block
+                    in_code_block = False
+                    if current_block:  # Only add non-empty blocks
+                        if current_block[0].startswith('    '):
+                            code_blocks.append('\n'.join(current_block))
+                            
+                        # Detect if code needs to be indented as a function
+                        elif 'def solver():' not in '\n'.join(current_block):
+                            # Add proper indentation for function body
+                            indented_block = []
+                            for code_line in current_block:
+                                if code_line.strip():  # Skip empty lines
+                                    if is_fewshot:
+                                        indented_block.append(code_line)
+                                    else:
+                                        indented_block.append('    ' + code_line)
+                                else:
+                                    indented_block.append(code_line)
+                            code_blocks.append('\n'.join(indented_block))
+                        else:
+                            code_blocks.append('\n'.join(current_block))
+                    current_block = []
+                else:
+                    # Start of code block
+                    in_code_block = True
+            elif in_code_block and not line.startswith('```'):
+                current_block.append(line)
+    
+        return '\n'.join(code_blocks)
 
     def safe_execute(self, code_string: str, keys=None):
         """Safely executes generated Python code with timeout protection.
@@ -116,16 +179,9 @@ class PoTExecutor(BaseWorker, BaseLLMBackend):
                 else:
                     return [locals_.get(k, None) for k in keys]
             except Exception as e:
-                logging.info("Execution error: error message {}, code_string {}".format(e, code_string))
+                logging.info("\n--------------\nExecution error: error message {}, code_string:\n{}\n--------------".format(e, code_string))
                 return None
         try:
-            # Clean up markdown code formatting
-            if code_string.startswith('```python'):
-                code_string = code_string[9:]
-            if code_string.endswith('ans\n```'):
-                code_string = code_string[:-7]
-            if code_string.endswith('```'):
-                code_string = code_string[:-3]
             # Execute with 5 second timeout
             ans = func_timeout.func_timeout(5, execute, args=(code_string,))
         except func_timeout.FunctionTimedOut:
@@ -152,6 +208,10 @@ class PoTExecutor(BaseWorker, BaseLLMBackend):
             - Handles special cases for numpy arrays and sympy expressions
             - Preserves relational expressions as strings
         """
+        if ans is None:
+            return None
+        if isinstance(ans, (int, float)) and math.isinf(ans):
+            return None
         if 'relational' in str(type(ans)):
             # Preserve relational expressions as strings
             return str(ans)
@@ -160,12 +220,18 @@ class PoTExecutor(BaseWorker, BaseLLMBackend):
                 # Handle scalar numpy value
                 ans = round(float(ans), 2)
             else:
-                # Handle array numpy value - take first element
-                ans = round(float(ans[0]), 2)
+                # Handle array numpy value - check array length
+                if len(ans) == 1:
+                    ans = round(float(ans[0]), 2)
+                else:
+                    # If array has multiple values, convert all elements
+                    ans = [round(float(x), 2) for x in ans]
             if convert_to_str:
                 return str(ans)
             else:
                 return ans
+        elif ans == 0:
+            return ans
         elif not ans:
             return None
         else:
@@ -220,7 +286,7 @@ class PoTExecutor(BaseWorker, BaseLLMBackend):
         """
         logging.info("input query: {}".format(query))
         if query == '' or query is None:
-            return {'last_output': None, 'total_tokens': 0}
+            return {'last_output': None, 'completion_tokens': 0, 'prompt_tokens': 0}
 
         # Select appropriate prompt template based on whether examples are provided
         if examples is None:
@@ -242,36 +308,31 @@ class PoTExecutor(BaseWorker, BaseLLMBackend):
 
         # Extract generated code from LLM response
         result = chat_complete_res["choices"][0]["message"]["content"]
-        
-        # Clean up markdown code formatting
-        if result.startswith('```python\n'):
-            result = result[10:]
-        if result.startswith('```python'):
-            result = result[9:]
-        if result.endswith('solver()\n```'):
-            result = result.replace('solver()\n```', '')
-        if result.endswith('```'):
-            result = result[:-3]
+        print('---------------------\n')
+        print(result)
+    
+        result = self.extract_code_blocks(result, is_fewshot = examples != None)
         
         # For zero-shot cases, add imports and answer extraction
         if examples is None:
-            if result.startswith('def solver():'):
-                result = result.replace('def solver():', '')
-            result = 'import math\nimport numpy as np\nimport statistics\ndef solver():\n' + result + '\nans = solver()'
+            if 'def solver():' in result:
+                result = result + '\nans = solver()'
+            else:
+                result = 'import math\nimport numpy as np\nimport statistics\ndef solver():\n' + result + '\nans = solver()'
 
-        logging.info('generated execution code: {}'.format(result))
+        logging.info('generated execution code:\n{}'.format(result))
         
         # Execute code safely and process result
         ans = self.safe_execute(result)
+        logging.info("Result of execution: {}".format(ans))
+        logging.info(chat_complete_res['usage'])
 
         if options is None:
             prediction = self.floatify_ans(self.simplify_ans(ans, False))
         else:
             prediction = self.floatify_ans(self.simplify_ans(ans, True))
-        logging.info("Result of execution: {}".format(prediction))
-        logging.info(chat_complete_res['usage'])
-
+        logging.info("Refined result: {}".format(prediction))
         completion_tokens = chat_complete_res['usage']['completion_tokens']
         prompt_tokens = chat_complete_res['usage']['prompt_tokens']
         
-        return {'last_output': prediction, 'completion_tokens': completion_tokens, 'prompt_tokens': prompt_tokens}
+        return {'last_output': str(prediction), 'completion_tokens': completion_tokens, 'prompt_tokens': prompt_tokens}

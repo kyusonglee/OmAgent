@@ -155,3 +155,8 @@ video_cache/
 
 # vscode
 .vscode
+
+# JSON files
+*.json
+!mcp.json
+import os 
