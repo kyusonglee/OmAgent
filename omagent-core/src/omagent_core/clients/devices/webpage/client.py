@@ -229,6 +229,16 @@ class WebpageClient:
                 word-wrap: break-word;
                 font-family: inherit;
             }
+
+            .error-message {
+                background-color: #f8d7da;
+                color: #721c24;
+                margin: 0;
+                padding: 2px 4px;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+                font-family: inherit;
+            }
             
             /* Input area styling */
             #input-area {
@@ -617,18 +627,10 @@ class WebpageClient:
                         if incomplete_flag:
                             self._incomplete_message = (
                                 self._incomplete_message + message_item["content"]
+
                             )
-                            if history and history[-1]["role"] == "assistant":
-                                history[-1]["content"] = self._incomplete_message
-                            else:
-                                history.append(
-                                    {
-                                        "role": "assistant",
-                                        "content": self._incomplete_message,
-                                    }
-                                )
                         else:
-                            if self._incomplete_message != "":
+                            if incomplete_flag:
                                 self._incomplete_message = (
                                     self._incomplete_message + message_item["content"]
                                 )
@@ -641,7 +643,6 @@ class WebpageClient:
                                             "content": self._incomplete_message,
                                         }
                                     )
-                                self._incomplete_message = ""
                             else:
                                 history.append(
                                     {
@@ -651,6 +652,7 @@ class WebpageClient:
                                 )
 
                     yield history, info_panel
+
 
                     container.get_connector("redis_stream_client")._client.xack(
                         stream_name, group_name, message_id

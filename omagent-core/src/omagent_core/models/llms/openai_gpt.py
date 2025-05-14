@@ -109,6 +109,7 @@ class OpenaiGPTLLM(BaseLLM):
     def _call(self, records: List[Message], **kwargs) -> Dict:
         if self.api_key is None or self.api_key == "":
             raise ValueError("api_key is required")
+
         if self.vision:
             res = self.client.chat.completions.create(
                 model=self.model_id,

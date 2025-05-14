@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Union
 from contextlib import AsyncExitStack
 import aiohttp
 
+
 from dotenv import load_dotenv
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
@@ -14,6 +15,7 @@ load_dotenv()
 class TransportType:
     STDIO = "stdio"
     SSE = "sse"
+
 
 class MCPClient:
     """
@@ -32,6 +34,7 @@ class MCPClient:
         """
         self.server_params = server_params
         self.transport_type = transport_type
+
         self.session: Optional[ClientSession] = None
         self.exit_stack = AsyncExitStack()
         self._client = None
@@ -76,6 +79,7 @@ class MCPClient:
         else:
             raise ValueError(f"Unsupported transport type: {self.transport_type}")
         
+
         await self.session.initialize()
 
         # List available tools on connection
@@ -117,6 +121,7 @@ class MCPClient:
                     return response.content[0].text
                 else:
                     return response.content[0].data
+
             return response  # Return full response if no content field
 
         return callable

@@ -379,6 +379,7 @@ class ConductorWorkflow:
         workflow_task_list = []
         for task in self._tasks:
             converted_task = task.to_workflow_task()
+            # print (converted_task)
             if isinstance(converted_task, list):
                 for subtask in converted_task:
                     workflow_task_list.append(subtask)

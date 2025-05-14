@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Dict, List, Optional, Type
 from threading import Thread
-from fakeredis import TcpFakeServer
 
 from omagent_core.engine.configuration.aaas_config import AaasConfig
 import yaml
@@ -35,6 +34,7 @@ class Container:
             except Exception as e:
                 print("Warning: error starting fake redis server:", e)
         
+
     def register_connector(
         self,
         connector: Type[BaseModel],
@@ -258,7 +258,10 @@ class Container:
 
         if isinstance(config_data, str | Path):
             if not Path(config_data).exists():
-                raise FileNotFoundError(f"Config file not found: {config_data}")
+                if os.getenv("OMAGENT_MODE") == "lite":
+                    return 
+                else:
+                    raise FileNotFoundError(f"Config file not found: {config_data}")
             config_data = yaml.load(open(config_data, "r"), Loader=yaml.FullLoader)
         config_data = clean_config_dict(config_data)
 

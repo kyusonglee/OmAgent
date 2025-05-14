@@ -5,6 +5,7 @@ from typing import Dict, Any, Optional, List, Union
 
 from mcp.client.stdio import StdioServerParameters
 from omagent_core.services.handlers.mcp_client import MCPClient, TransportType
+
 import logging
 
 
@@ -97,6 +98,7 @@ def create_mcp_client(config_path: Optional[Path] = None, server_name: Optional[
         logging.error(f"Unsupported transport type '{transport_type}' for server '{server_name}'")
         return None
 
+
 def create_all_mcp_clients(config_path: Optional[Path] = None) -> Dict[str, MCPClient]:
     """
     Create MCPClient instances for all servers defined in the config.
@@ -140,5 +142,6 @@ def create_all_mcp_clients(config_path: Optional[Path] = None) -> Dict[str, MCPC
             clients[server_name] = MCPClient(sse_params, transport_type=TransportType.SSE)
         else:
             logging.error(f"Unsupported transport type '{transport_type}' for server '{server_name}'")
+
     
     return clients 

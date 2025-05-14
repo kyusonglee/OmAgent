@@ -20,7 +20,7 @@ CURRENT_PATH = root_path = Path(__file__).parents[0]
 ROOT_PATH = Path(__file__).parents[1]
 
 @registry.register_worker()
-class TaskExitMonitor(BaseWorker):
+class TaskExitMonitor_a4a(BaseWorker):
     def _run(self, *args, **kwargs):    
         
         print ("finished")

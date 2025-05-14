@@ -3,7 +3,7 @@ from omagent_core.engine.workflow.conductor_workflow import ConductorWorkflow
 from omagent_core.engine.workflow.task.simple_task import simple_task
 from agent.ExecuteAgent.ExecuteAgent import ExecuteAgent
 from agent.DebugAgent.DebugAgent import DebugAgent
-from agent.TaskExitMonitor.TaskExitMonitor import TaskExitMonitor
+from agent.TaskExitMonitor.TaskExitMonitor import TaskExitMonitor_a4a
 from omagent_core.engine.workflow.task.do_while_task import DoWhileTask
 from omagent_core.engine.workflow.task.switch_task import SwitchTask
 
@@ -62,7 +62,7 @@ class OmAgent4Agent(ConductorWorkflow):
         )
 
         self.task_exit_monitor_task = simple_task(
-            task_def_name=TaskExitMonitor, task_reference_name="task_exit_monitor"
+            task_def_name=TaskExitMonitor_a4a, task_reference_name="task_exit_monitor"
         )
 
 

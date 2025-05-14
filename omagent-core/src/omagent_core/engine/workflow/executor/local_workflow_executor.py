@@ -1,11 +1,10 @@
-import uuid
 from typing import Dict
 import logging
 from omagent_core.utils.registry import registry
-import uuid
 import logging
 from omagent_core.engine.http.models import *
 import json
+import inspect
 import traceback
 import re
 
@@ -21,7 +20,7 @@ class LocalWorkflowExecutor:
 
     def evaluate_input_parameters(self, task: Dict) -> Dict:
         processed_inputs = {}
-        input_params = task.get('inputParameters') or task.get('input_parameters', {})
+        input_params = task.get('inputParameters') or task.get('input_parameters') or task.get('input_interface', {})
 
         for key, value in input_params.items():
             if isinstance(value, str) and value.startswith('${') and value.endswith('}'):
@@ -31,7 +30,7 @@ class LocalWorkflowExecutor:
                     task_output = self.task_outputs[parts[0]][parts[1]]
                     for part in parts[2:]:  
                         if isinstance(task_output, dict):
-                            task_output = task_output.get(part, {})
+                            task_output = task_output.get(part) or task_output.get("user_instruction", {})
                     processed_inputs[key] = task_output
             else:
                 processed_inputs[key] = value
@@ -39,7 +38,6 @@ class LocalWorkflowExecutor:
 
 
     def start_workflow(self, workflow_def, start_request, workers) -> str:
-        workflow_id = str(uuid.uuid4())        
         print ("start_request:", start_request.input)
         self.task_outputs["workflow"] = {"input": start_request.input}        
         output = {}
@@ -74,9 +72,28 @@ class LocalWorkflowExecutor:
             
             worker = worker_class()            
             """
-            inputs = self.evaluate_input_parameters(task)      
+            inputs = self.evaluate_input_parameters(task)
+            print(inputs)
+            signature = inspect.signature(worker._run)
+            signature_params = dict(signature.parameters)
+            checked_inputs = {}
+            for signature_param_key, signature_param_value in signature_params.items():
+                if signature_param_key in ['args', 'kwargs']:
+                    continue
+                if signature_param_key not in inputs:
+                    checked_inputs[signature_param_key] = None
+                else:
+                    checked_inputs[signature_param_key] = inputs[signature_param_key]
             # Execute task
-            result = worker._run(**inputs)
+            try:
+                result = worker._run(**checked_inputs)
+            except Exception as e:
+                worker.callback.error(
+                    worker.workflow_instance_id, 
+                    error_code=500,
+                    error_info=f"ERROR:The '{task_name}' task execution failed."
+                )
+                raise e
             # Store output
             task_ref_key = 'taskReferenceName' if 'taskReferenceName' in task else 'task_reference_name'
 
@@ -104,7 +121,7 @@ class LocalWorkflowExecutor:
         elif task_type == 'SWITCH':
             #print (self.evaluate_input_parameters(task))
             case_value = self.evaluate_input_parameters(task)['switchCaseValue']
-            
+
             if not type(case_value) == str:
                 case_value = str(case_value).lower()
             if case_value in task['decision_cases']:

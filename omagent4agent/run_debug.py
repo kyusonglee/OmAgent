@@ -1,6 +1,17 @@
 import os
 os.environ["OMAGENT_MODE"] = "lite"
 
+import logging
+
+# 1. 获取 fakeredis 的 logger
+fakeredis_logger = logging.getLogger("fakeredis")
+# 2. 移除所有处理器（强制停止日志输出）
+fakeredis_logger.handlers = []
+# 3. 禁止日志向上传播（防止父 logger 处理）
+fakeredis_logger.propagate = False
+# 4. 设置日志级别为最高（确保万无一失）
+fakeredis_logger.setLevel(logging.CRITICAL + 1)  # 比 CRITICAL 更高
+
 # Import required modules and components
 from omagent_core.utils.container import container
 from omagent_core.engine.workflow.conductor_workflow import ConductorWorkflow

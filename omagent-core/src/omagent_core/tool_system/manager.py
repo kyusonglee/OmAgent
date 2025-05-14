@@ -75,6 +75,7 @@ class MCPToolAdapter:
             print(f"Error in MCPToolAdapter run: {e}")
             # Return the error message rather than crashing
             return {"error": str(e), "status": "failed"}
+
     
     def generate_schema(self):
         """Generate a schema for the tool that's compatible with OpenAI's function calling format."""
@@ -179,6 +180,7 @@ class ToolManager(BaseLLMBackend):
                         tools_dict[name] = tool_cls
                 except Exception as e:
                     print(f"Error in tool_cls: {e}")
+
             data['tools'] = tools_dict
         
         # Initialize Pydantic model first
@@ -451,6 +453,7 @@ class ToolManager(BaseLLMBackend):
                         func_schema["parameters"]["properties"] = {}
                 
                 tool_schemas.append(schema)
+
             return tool_schemas
         else:
             raise ValueError("Only support gpt style tool selection schema")
@@ -489,6 +492,7 @@ class ToolManager(BaseLLMBackend):
             print(f"Extracting nested arguments structure for tool {tool_name}")
             args = args["arguments"]
 
+
         # Handle MCPToolAdapter separately
         if isinstance(tool, MCPToolAdapter):
             print("MCPToolAdapter")
@@ -514,13 +518,13 @@ class ToolManager(BaseLLMBackend):
             try:
                 # Run with a timeout
                 result = loop.run_until_complete(
-                    asyncio.wait_for(run_async_tool(), timeout=400.0)
+                    asyncio.wait_for(run_async_tool(), timeout=200.0)
                 )
                 print("MCPToolAdapter execution completed successfully")
                 return result
             except asyncio.TimeoutError:
                 print("MCPToolAdapter execution timed out")
-                return "Tool execution timed out after 400 seconds"
+                return "Tool execution timed out after 60 seconds"
             except Exception as e:
                 print(f"Error during MCPToolAdapter execution: {e}")
                 raise
@@ -568,6 +572,7 @@ class ToolManager(BaseLLMBackend):
         # Handle MCPToolAdapter separately
         if isinstance(tool, MCPToolAdapter):
             print(f"Executing async MCPToolAdapter {tool_name} with args: {args}")
+
             return await tool.run(**args)
         else:
             # Standard BaseTool handling
@@ -767,6 +772,7 @@ class ToolManager(BaseLLMBackend):
             import traceback
             traceback.print_exc()
             return "failed", error_msg
+       
 
     async def aexecute_task(self, task, related_info=None, function=None):
         if self.llm == None:
