@@ -17,7 +17,7 @@ class LocalWorkflowExecutor:
     
     def camel_to_snake(self,s):
         return re.sub(r'([A-Z])', r'_\1', s).lower()
-        
+
     def evaluate_input_parameters(self, task: Dict) -> Dict:
         processed_inputs = {}
         input_params = task.get('inputParameters') or task.get('input_parameters') or task.get('input_interface', {})
@@ -107,6 +107,7 @@ class LocalWorkflowExecutor:
                 # Execute all tasks in loop
                 for loop_task in task['loopOver' if 'loopOver' in task else 'loop_over']:                    
                     self.execute_task(loop_task, workers)
+                
                 if 'loopCondition' in task or "loop_condition" in task:
                     should_continue = self.evaluate_loop_condition(task['loopCondition' if 'loopCondition' in task else "loop_condition"])            
                     print ("should_continue:", should_continue)
@@ -148,7 +149,7 @@ class LocalWorkflowExecutor:
         
         # First split by OR operator (||)
         or_conditions = [cond.strip() for cond in main_condition.split('||')]
-        
+
         for or_part in or_conditions:
             # For each OR part, split by AND operator (&&)
             and_conditions = [cond.strip() for cond in or_part.split('&&')]
@@ -197,7 +198,7 @@ class LocalWorkflowExecutor:
             operator = '<'
         else:
             return False
-            
+
         # Parse left side (task reference)    
         if left.startswith('$.'):
             task_ref_full = left[2:]  # Remove $.
@@ -213,7 +214,8 @@ class LocalWorkflowExecutor:
                 properties = []
             
             # Get task output and navigate through properties
-            value = self.task_outputs.get(task_ref, {}).get('output', {}).get(array_part, {})            
+            value = self.task_outputs.get(task_ref, {}).get('output', {}).get(array_part, {})    
+            
             #if type(value) == bool:
             #    return value
             # Parse right side (could be another task reference or a literal)

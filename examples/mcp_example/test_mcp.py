@@ -1,5 +1,5 @@
 import os
-os.environ["OMAGENT_MODE"] = "lite"
+os.environ["OMAGENT_MODE"] = "pro"
 from typing import List
 from pydantic import Field
 from omagent_core.models.llms.base import BaseLLMBackend
@@ -25,9 +25,9 @@ container.register_stm("SharedMemSTM")
 class LLMTest(BaseLLMBackend):
     llm: OpenaiGPTLLM ={
         "name": "OpenaiGPTLLM", 
-        "model_id": "gpt-4o-mini", 
+        "model_id": "gpt-4o", 
         "api_key": os.getenv("custom_openai_key"), 
-        "endpoint": "https://api.openai.com/v1",   
+        "endpoint": os.getenv("custom_openai_endpoint"),   
         "vision": False,
         "response_format": "text",
         "use_default_sys_prompt": False,
@@ -40,6 +40,6 @@ class LLMTest(BaseLLMBackend):
 llm_test = LLMTest(workflow_instance_id="temp")
 
 tool_manager = llm_test.tool_manager
-x = tool_manager.execute_task("command ls -l for the current directory") 
+x = tool_manager.execute_task("describe /data0/qdl/test/old_women.png",) 
 print(x)
 
