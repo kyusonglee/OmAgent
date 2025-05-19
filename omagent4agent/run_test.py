@@ -1,6 +1,5 @@
 import os
 os.environ["OMAGENT_MODE"] = "lite"
-
 import logging
 
 # 1. 获取 fakeredis 的 logger
@@ -11,8 +10,6 @@ fakeredis_logger.handlers = []
 fakeredis_logger.propagate = False
 # 4. 设置日志级别为最高（确保万无一失）
 fakeredis_logger.setLevel(logging.CRITICAL + 1)  # 比 CRITICAL 更高
-
-
 
 # Import required modules and components
 from omagent_core.utils.container import container

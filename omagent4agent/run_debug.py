@@ -1,6 +1,5 @@
 import os
 os.environ["OMAGENT_MODE"] = "lite"
-
 import logging
 
 # 1. 获取 fakeredis 的 logger
