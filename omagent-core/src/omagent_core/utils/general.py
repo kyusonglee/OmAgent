@@ -10,7 +10,6 @@ import requests
 from PIL import Image
 import yaml
 from pathlib import Path
-from mcp.client.stdio import StdioServerParameters
 from omagent_core.services.handlers.mcp_client import MCPClient
 
 
@@ -174,11 +173,11 @@ def create_mcp_client_from_config(config_path: str) -> MCPClient:
     args = mcp_config.get("args", [])
     env = mcp_config.get("env", {})
 
-    # Create StdioServerParameters using loaded config
-    server_params = StdioServerParameters(
-        command=command,
-        args=args,
-        env=env
-    )
+    # Create server params dictionary for FastMCP
+    server_params = {
+        "command": command,
+        "args": args,
+        "env": env
+    }
 
     return MCPClient(server_params) 

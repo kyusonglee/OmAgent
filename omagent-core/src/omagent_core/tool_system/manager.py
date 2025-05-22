@@ -946,70 +946,65 @@ class ToolManager(BaseLLMBackend):
         if not client:
             print(f"MCP client '{server_name}' is invalid")
             return
-            
-        if not client.session:
-            try:
-                await client.connect()
-            except Exception as e:
-                print(f"Failed to connect to MCP server '{server_name}': {e}")
-                return
         
         try:
-            # Get available tools from MCP server
-            available_tools = await client.get_available_tools()
-            
-            for tool in available_tools:
-                # Create a sanitized tool name with server prefix
-                base_name = tool.name.replace('-', '_').replace(' ', '_').lower()
-                # Include server name in the tool name to avoid conflicts between servers
-                tool_name = f"mcp_{server_name}_{base_name}"
-                #print(f"Discovered MCP tool: {tool_name}")
+            # Use the proper async with context manager pattern that FastMCP requires
+            async with client._client as fastmcp_client:
+                # Get available tools from MCP server
+                available_tools = await fastmcp_client.list_tools()
                 
-                # Skip if tool already exists
-                if tool_name in self.tools:
-                    continue
+                for tool in available_tools:
+                    # Create a sanitized tool name with server prefix
+                    base_name = tool.name.replace('-', '_').replace(' ', '_').lower()
+                    # Include server name in the tool name to avoid conflicts between servers
+                    tool_name = f"mcp_{server_name}_{base_name}"
+                    #print(f"Discovered MCP tool: {tool_name}")
                     
-                # Create a schema from MCP tool's input schema
-                schema_dict = {}
-                if hasattr(tool, 'inputSchema') and tool.inputSchema:
-                    if 'properties' in tool.inputSchema:
-                        for prop_name, prop_info in tool.inputSchema['properties'].items():
-                            # Create property info with type and description
-                            property_info = {
-                                "description": prop_info.get("description", f"Parameter {prop_name}"),
-                                "type": prop_info.get("type", "string"),
-                                "required": prop_name in tool.inputSchema.get('required', [])
-                            }
-                            
-                            # Handle array type properties
-                            if property_info["type"] == "array" and "items" in prop_info:
-                                property_info["items"] = prop_info["items"]
-                            
-                            # Add enums if present
-                            if "enum" in prop_info:
-                                property_info["enum"] = prop_info["enum"]
+                    # Skip if tool already exists
+                    if tool_name in self.tools:
+                        continue
+                        
+                    # Create a schema from MCP tool's input schema
+                    schema_dict = {}
+                    if hasattr(tool, 'inputSchema') and tool.inputSchema:
+                        if 'properties' in tool.inputSchema:
+                            for prop_name, prop_info in tool.inputSchema['properties'].items():
+                                # Create property info with type and description
+                                property_info = {
+                                    "description": prop_info.get("description", f"Parameter {prop_name}"),
+                                    "type": prop_info.get("type", "string"),
+                                    "required": prop_name in tool.inputSchema.get('required', [])
+                                }
                                 
-                            schema_dict[prop_name] = property_info
-                
-                # Get description with fallback and include server name
-                tool_description = getattr(tool, 'description', None) or f"MCP tool: {tool.name}"
-                tool_description = f"[{server_name}] {tool_description}"
-                
-                # Create the adapter
-                dynamic_tool = MCPToolAdapter(
-                    name=tool_name,
-                    description=tool_description,
-                    original_name=tool.name,
-                    mcp_client=client,
-                    schema=schema_dict
-                )
-                
-                # Set the parent for workflow ID
-                dynamic_tool._parent = self
-                
-                # Register the tool
-                self.add_tool(dynamic_tool)
-                
+                                # Handle array type properties
+                                if property_info["type"] == "array" and "items" in prop_info:
+                                    property_info["items"] = prop_info["items"]
+                                
+                                # Add enums if present
+                                if "enum" in prop_info:
+                                    property_info["enum"] = prop_info["enum"]
+                                    
+                                schema_dict[prop_name] = property_info
+                    
+                    # Get description with fallback and include server name
+                    tool_description = getattr(tool, 'description', None) or f"MCP tool: {tool.name}"
+                    tool_description = f"[{server_name}] {tool_description}"
+                    
+                    # Create the adapter
+                    dynamic_tool = MCPToolAdapter(
+                        name=tool_name,
+                        description=tool_description,
+                        original_name=tool.name,
+                        mcp_client=client,
+                        schema=schema_dict
+                    )
+                    
+                    # Set the parent for workflow ID
+                    dynamic_tool._parent = self
+                    
+                    # Register the tool
+                    self.add_tool(dynamic_tool)
+                    
         except Exception as e:
             print(f"Error discovering MCP tools from '{server_name}': {e}")
             
@@ -1024,67 +1019,62 @@ class ToolManager(BaseLLMBackend):
             print("No default MCP client configured")
             return self
             
-        if not self.mcp_client.session:
-            try:
-                await self.mcp_client.connect()
-            except Exception as e:
-                print(f"Failed to connect to default MCP server: {e}")
-                return self
-                
         try:
-            # Get available tools from MCP server
-            available_tools = await self.mcp_client.get_available_tools()
-            
-            for tool in available_tools:
-                # Create a sanitized tool name
-                base_name = tool.name.replace('-', '_').replace(' ', '_').lower()
-                tool_name = f"mcp_{base_name}"
-                print(f"Discovered MCP tool: {tool_name}")
+            # Use the proper async with context manager pattern that FastMCP requires
+            async with self.mcp_client._client as fastmcp_client:
+                # Get available tools from MCP server
+                available_tools = await fastmcp_client.list_tools()
                 
-                # Skip if tool already exists
-                if tool_name in self.tools:
-                    continue
+                for tool in available_tools:
+                    # Create a sanitized tool name
+                    base_name = tool.name.replace('-', '_').replace(' ', '_').lower()
+                    tool_name = f"mcp_{base_name}"
+                    print(f"Discovered MCP tool: {tool_name}")
                     
-                # Create a schema from MCP tool's input schema
-                schema_dict = {}
-                if hasattr(tool, 'inputSchema') and tool.inputSchema:
-                    if 'properties' in tool.inputSchema:
-                        for prop_name, prop_info in tool.inputSchema['properties'].items():
-                            # Create property info with type and description
-                            property_info = {
-                                "description": prop_info.get("description", f"Parameter {prop_name}"),
-                                "type": prop_info.get("type", "string"),
-                                "required": prop_name in tool.inputSchema.get('required', [])
-                            }
-                            
-                            # Handle array type properties
-                            if property_info["type"] == "array" and "items" in prop_info:
-                                property_info["items"] = prop_info["items"]
-                            
-                            # Add enums if present
-                            if "enum" in prop_info:
-                                property_info["enum"] = prop_info["enum"]
+                    # Skip if tool already exists
+                    if tool_name in self.tools:
+                        continue
+                        
+                    # Create a schema from MCP tool's input schema
+                    schema_dict = {}
+                    if hasattr(tool, 'inputSchema') and tool.inputSchema:
+                        if 'properties' in tool.inputSchema:
+                            for prop_name, prop_info in tool.inputSchema['properties'].items():
+                                # Create property info with type and description
+                                property_info = {
+                                    "description": prop_info.get("description", f"Parameter {prop_name}"),
+                                    "type": prop_info.get("type", "string"),
+                                    "required": prop_name in tool.inputSchema.get('required', [])
+                                }
                                 
-                            schema_dict[prop_name] = property_info
+                                # Handle array type properties
+                                if property_info["type"] == "array" and "items" in prop_info:
+                                    property_info["items"] = prop_info["items"]
+                                
+                                # Add enums if present
+                                if "enum" in prop_info:
+                                    property_info["enum"] = prop_info["enum"]
+                                    
+                                schema_dict[prop_name] = property_info
+                    
+                    # Get description with fallback to ensure it's not None
+                    tool_description = getattr(tool, 'description', None) or f"MCP tool: {tool.name}"
+                    
+                    # Create the adapter
+                    dynamic_tool = MCPToolAdapter(
+                        name=tool_name,
+                        description=tool_description,
+                        original_name=tool.name,
+                        mcp_client=self.mcp_client,
+                        schema=schema_dict
+                    )
+                    
+                    # Set the parent for workflow ID
+                    dynamic_tool._parent = self
+                    
+                    # Register the tool
+                    self.add_tool(dynamic_tool)
                 
-                # Get description with fallback to ensure it's not None
-                tool_description = getattr(tool, 'description', None) or f"MCP tool: {tool.name}"
-                
-                # Create the adapter
-                dynamic_tool = MCPToolAdapter(
-                    name=tool_name,
-                    description=tool_description,
-                    original_name=tool.name,
-                    mcp_client=self.mcp_client,
-                    schema=schema_dict
-                )
-                
-                # Set the parent for workflow ID
-                dynamic_tool._parent = self
-                
-                # Register the tool
-                self.add_tool(dynamic_tool)
-            
         except Exception as e:
             print(f"Error discovering MCP tools: {e}")
             

@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
 
-from mcp.client.stdio import StdioServerParameters
 from omagent_core.services.handlers.mcp_client import MCPClient, TransportType
 
 import logging
@@ -74,12 +73,12 @@ def create_mcp_client(config_path: Optional[Path] = None, server_name: Optional[
     transport_type = server_config.get("transport", TransportType.STDIO)
     
     if transport_type == TransportType.STDIO:
-        # Create stdio server parameters for command-line tools
-        server_params = StdioServerParameters(
-            command=server_config.get("command", ""),
-            args=server_config.get("args", []),
-            env=server_config.get("env", {})
-        )
+        # Create a dictionary with command, args, and env for FastMCP
+        server_params = {
+            "command": server_config.get("command", ""),
+            "args": server_config.get("args", []),
+            "env": server_config.get("env", {})
+        }
         return MCPClient(server_params, transport_type=TransportType.STDIO)
     elif transport_type == TransportType.SSE:
         # For SSE, we need a URL and optional headers
@@ -120,12 +119,12 @@ def create_all_mcp_clients(config_path: Optional[Path] = None) -> Dict[str, MCPC
         transport_type = server_config.get("transport", TransportType.STDIO)
         
         if transport_type == TransportType.STDIO:
-            # Create stdio server parameters
-            server_params = StdioServerParameters(
-                command=server_config.get("command", ""),
-                args=server_config.get("args", []),
-                env=server_config.get("env", {})
-            )
+            # Create a dictionary with command, args, and env for FastMCP
+            server_params = {
+                "command": server_config.get("command", ""),
+                "args": server_config.get("args", []),
+                "env": server_config.get("env", {})
+            }
             clients[server_name] = MCPClient(server_params, transport_type=TransportType.STDIO)
         elif transport_type == TransportType.SSE:
             # For SSE, verify we have a URL

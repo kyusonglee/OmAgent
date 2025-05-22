@@ -2,7 +2,7 @@
   "mcpServers": {
     "vlm-r1": {
       "transport": "sse",
-      "url": "http://localhost:8008/sse",
+      "url": "http://10.0.0.26:8009/sse",
       "headers": {},
       "timeout": 30
     }

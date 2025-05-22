@@ -4,11 +4,9 @@ from typing import Any, Dict, List, Optional, Union
 from contextlib import AsyncExitStack
 import aiohttp
 
-
 from dotenv import load_dotenv
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-from mcp.client.sse import sse_client
+from fastmcp import Client
+from fastmcp.client.progress import ProgressHandler
 
 load_dotenv()
 
@@ -24,64 +22,89 @@ class MCPClient:
     Supports both stdio and SSE transport types.
     """
 
-    def __init__(self, server_params: Union[StdioServerParameters, Dict[str, Any]], transport_type: str = TransportType.STDIO):
+    def __init__(self, server_params: Union[Dict[str, Any], str], transport_type: str = TransportType.STDIO):
         """
         Initialize the MCP client with server parameters and transport type
         
         Args:
-            server_params: For stdio, a StdioServerParameters object. For SSE, a dict with 'url' key
+            server_params: For stdio, a path to the server script or dict with command/args.
+                         For SSE, a URL string or dict with 'url' key
             transport_type: One of 'stdio' or 'sse'
         """
         self.server_params = server_params
         self.transport_type = transport_type
-
-        self.session: Optional[ClientSession] = None
-        self.exit_stack = AsyncExitStack()
         self._client = None
-        self.stdio = None
-        self.write = None
+        
+        # Configure the client based on transport type
+        if self.transport_type == TransportType.STDIO:
+            if isinstance(server_params, dict) and "command" in server_params and "args" in server_params:
+                # Create a config dict for FastMCP
+                self._client = Client({
+                    "mcpServers": {
+                        "default": {
+                            "command": server_params["command"],
+                            "args": server_params["args"],
+                            "env": server_params.get("env", {})
+                        }
+                    }
+                })
+            elif isinstance(server_params, str):
+                # Assume it's a script path
+                self._client = Client(server_params)
+            else:
+                raise ValueError("Invalid server parameters for STDIO transport")
+                
+        elif self.transport_type == TransportType.SSE:
+            if isinstance(server_params, dict) and "url" in server_params:
+                url = server_params["url"]
+                # FastMCP will handle the headers and timeout in the context manager
+                self._client = Client(url)
+            elif isinstance(server_params, str):
+                # Assume it's a URL
+                self._client = Client(server_params)
+            else:
+                raise ValueError("SSE transport requires a URL string or a dict with 'url' key")
+        else:
+            raise ValueError(f"Unsupported transport type: {self.transport_type}")
 
     async def __aenter__(self):
         """Async context manager entry"""
-        await self.connect()
+        if not self._client:
+            raise RuntimeError("Client not initialized")
+            
+        # When MCPClient is used as a context manager, enter the FastMCP client context
+        self._context_manager = self._client.__aenter__()
+        await self._context_manager
+        
+        # Get available tools after connection
+        tools = await self.get_available_tools()
+        print("\nConnected to server with tools:", [tool.name for tool in tools])
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """Async context manager exit"""
-        await self.cleanup()
+        if self._client:
+            # Properly exit the FastMCP client context
+            await self._client.__aexit__(exc_type, exc_val, exc_tb)
 
     async def cleanup(self):
         """Clean up resources"""
-        await self.exit_stack.aclose()
+        if hasattr(self, '_context_manager') and self._client:
+            # Properly exit the context manager
+            await self._client.__aexit__(None, None, None)
 
     async def connect(self):
-        """Establishes connection to MCP server using the appropriate transport"""
-        if self.transport_type == TransportType.STDIO:
-            # STDIO transport
-            self._client = stdio_client(self.server_params)
-            stdio_transport = await self.exit_stack.enter_async_context(self._client)
-            self.stdio, self.write = stdio_transport
-            self.session = await self.exit_stack.enter_async_context(ClientSession(self.stdio, self.write))
-        elif self.transport_type == TransportType.SSE:
-            # SSE transport
-            if not isinstance(self.server_params, dict) or 'url' not in self.server_params:
-                raise ValueError("SSE transport requires a dict with 'url' key in server_params")
+        """Establishes connection to MCP server using FastMCP"""
+        if not self._client:
+            raise RuntimeError("Client not initialized")
             
-            url = self.server_params['url']
-            headers = self.server_params.get('headers', {})
-            timeout = self.server_params.get('timeout', 30)
-            
-            # Create SSE client
-            self._client = sse_client(url, headers=headers, timeout=timeout)
-            sse_transport = await self.exit_stack.enter_async_context(self._client)
-            self.stdio, self.write = sse_transport
-            self.session = await self.exit_stack.enter_async_context(ClientSession(self.stdio, self.write))
-        else:
-            raise ValueError(f"Unsupported transport type: {self.transport_type}")
+        # Enter the context manager properly for FastMCP client
+        # This is a different approach than before - we need to actually start
+        # using the client's context manager
+        if not hasattr(self, '_context_manager'):
+            self._context_manager = self._client.__aenter__()
+            await self._context_manager
         
-
-        await self.session.initialize()
-
         # List available tools on connection
         tools = await self.get_available_tools()
         print("\nConnected to server with tools:", [tool.name for tool in tools])
@@ -90,12 +113,12 @@ class MCPClient:
         """
         Retrieve a list of available tools from the MCP server.
         """
-        if not self.session:
+        if not self._client:
             raise RuntimeError("Not connected to MCP server")
             
-        response = await self.session.list_tools()
-        tools = response.tools  # Direct access to tools from response
-        return tools
+        async with self._client as client:
+            tools = await client.list_tools()
+            return tools
 
     def call_tool(self, tool_name: str) -> Any:
         """
@@ -108,21 +131,26 @@ class MCPClient:
         Returns:
             A callable async function that executes the specified tool
         """
-        if not self.session:
+        if not self._client:
             raise RuntimeError("Not connected to MCP server")
 
         async def callable(*args, **kwargs):
-            print ("callable", tool_name, kwargs)
-            response = await self.session.call_tool(tool_name, arguments=kwargs)     
-                   
-            if hasattr(response, 'content') and response.content:
-                #return response.content[0].dict()
-                if hasattr(response.content[0], 'text'):
-                    return response.content[0].text
-                else:
-                    return response.content[0].data
-
-            return response  # Return full response if no content field
+            print("callable", tool_name, kwargs)
+            
+            # We need to use the async with context for each tool call to ensure proper connection
+            async with self._client as client:
+                result = await client.call_tool(tool_name, arguments=kwargs)
+                
+                # Handle the result structure from FastMCP
+                if result and len(result) > 0:
+                    # Extract data from the first content item
+                    first_content = result[0]
+                    if hasattr(first_content, "text") and first_content.text is not None:
+                        return first_content.text
+                    elif hasattr(first_content, "data") and first_content.data is not None:
+                        return first_content.data
+                
+                return result  # Return full result if no content could be extracted
 
         return callable
 
@@ -143,12 +171,12 @@ class MCPClient:
         messages = [{"role": "user", "content": query}]
 
         # Get available tools in the format expected by the LLM
-        response = await self.session.list_tools()
+        tools = await self._client.list_tools()
         available_tools = [{
             "name": tool.name,
             "description": tool.description,
             "input_schema": tool.inputSchema
-        } for tool in response.tools]
+        } for tool in tools]
 
         # Initial LLM call
         response = llm_client.messages.create(
@@ -171,7 +199,7 @@ class MCPClient:
                 tool_args = content.input
 
                 # Execute tool call
-                result = await self.session.call_tool(tool_name, tool_args)
+                result = await self._client.call_tool(tool_name, tool_args)
                 final_text.append(f"[Calling tool {tool_name} with args {tool_args}]")
 
                 assistant_message_content.append(content)
@@ -179,13 +207,22 @@ class MCPClient:
                     "role": "assistant",
                     "content": assistant_message_content
                 })
+                
+                # Format tool result for LLM
+                tool_result_content = []
+                for res_content in result:
+                    if hasattr(res_content, "text"):
+                        tool_result_content.append({"type": "text", "text": res_content.text})
+                    elif hasattr(res_content, "data"):
+                        tool_result_content.append({"type": "text", "text": str(res_content.data)})
+                
                 messages.append({
                     "role": "user",
                     "content": [
                         {
                             "type": "tool_result",
                             "tool_use_id": content.id,
-                            "content": result.content
+                            "content": tool_result_content
                         }
                     ]
                 })
@@ -200,4 +237,4 @@ class MCPClient:
 
                 final_text.append(response.content[0].text)
 
-        return "\n".join(final_text) 
+        return "\n".join(final_text)
